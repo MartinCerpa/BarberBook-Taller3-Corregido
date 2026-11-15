@@ -1,6 +1,8 @@
 const COOKIE_NAME = 'barberbook_t3_session';
 const cookieOptions = () => ({ httpOnly: true, sameSite: 'strict', path: '/api',
-  secure: process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true' });
+  // Excepción explícita para la demostración HTTP local; producción conserva Secure por defecto.
+  secure: process.env.COOKIE_SECURE === 'false' ? false
+    : process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true' });
 const readToken = (req) => req.headers.cookie?.split(';').map((item) => item.trim())
   .find((item) => item.startsWith(`${COOKIE_NAME}=`))?.slice(COOKIE_NAME.length + 1);
 

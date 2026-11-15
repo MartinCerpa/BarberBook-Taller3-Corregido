@@ -1,0 +1,20 @@
+# El build no recibe archivos privados, dependencias locales ni otros proyectos.
+**
+!package.json
+!package-lock.json
+!index.html
+!vite.config.js
+!nginx.conf
+!src/
+!src/**
+!public/
+!public/**
+**/.env
+**/.env.*
+**/.runtime
+**/.runtime/**
+**/node_modules
+**/node_modules/**
+**/*.log
+**/*.pem
+**/*.key
