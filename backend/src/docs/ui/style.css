@@ -1,0 +1,10 @@
+body { margin: 0; background: #fafafa; font-family: system-ui, sans-serif; }
+.session-tools { max-width: 1420px; margin: 0 auto; padding: 1.5rem 1.25rem; box-sizing: border-box; }
+.session-tools h1 { font-size: 1.5rem; color: #245a63; }
+.session-tools p { max-width: 1000px; line-height: 1.5; }
+.session-tools form, .session-actions { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin-block: .75rem; }
+.session-tools label { display: grid; gap: .35rem; }
+.session-tools input, .session-tools button { padding: .65rem; min-height: 42px; box-sizing: border-box; font: inherit; }
+.session-tools button { cursor: pointer; }
+.session-tools input { max-width: 100%; border: 1px solid #aaa; border-radius: 4px; }
+.session-tools button:disabled { cursor: wait; }

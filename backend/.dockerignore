@@ -1,0 +1,15 @@
+# Contexto limitado a dependencias declaradas y código del backend.
+**
+!package.json
+!package-lock.json
+!src/
+!src/**
+**/.env
+**/.env.*
+**/.runtime
+**/.runtime/**
+**/node_modules
+**/node_modules/**
+**/*.log
+**/*.pem
+**/*.key

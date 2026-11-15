@@ -5,6 +5,7 @@ import bookingRoutes from './routes/bookingRoutes.js';
 import availabilityRoutes from './routes/availabilityRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import professionalRoutes from './routes/professionalRoutes.js';
+import documentationRoutes from './routes/documentationRoutes.js';
 import { createAuthService } from './services/authService.js';
 
 // La misma aplicación se usa en ejecución normal y en las pruebas con una base aislada.
@@ -14,7 +15,7 @@ export function createApp(database = pool) {
   app.locals.database = database;
   app.locals.auth = createAuthService(database);
   app.use(express.json({ limit: '32kb' }));
-  app.use('/api', catalogRoutes, bookingRoutes, availabilityRoutes, authRoutes, professionalRoutes);
+  app.use('/api', documentationRoutes, catalogRoutes, bookingRoutes, availabilityRoutes, authRoutes, professionalRoutes);
   app.get('/api/health', async (req, res) => {
     try {
       await database.query('SELECT 1');

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BarberBook · Swagger UI</title>
+    <link rel="stylesheet" href="/api/docs/assets/swagger-ui.css">
+    <link rel="stylesheet" href="/api/docs/style.css">
+    <script defer src="/api/docs/assets/swagger-ui-bundle.js"></script>
+    <script defer src="/api/docs/init.js"></script>
+  </head>
+  <body>
+    <header class="session-tools">
+      <h1>BarberBook · Explorador de API</h1>
+      <p>Los GET públicos no requieren acceso. Para operaciones privadas, inicia sesión aquí o en <a href="/#/panel/dashboard">el panel</a> con el mismo host. La cookie HttpOnly la administra el navegador; CSRF permanece en memoria.</p>
+      <form id="session-login">
+        <label>Correo profesional <input id="session-email" type="email" autocomplete="username" required maxlength="254"></label>
+        <label>Contraseña <input id="session-password" type="password" autocomplete="current-password" required maxlength="128"></label>
+        <button type="submit">Iniciar sesión</button>
+      </form>
+      <div class="session-actions"><button id="session-check" type="button">Comprobar sesión</button><button id="session-logout" type="button">Cerrar sesión</button></div>
+      <p id="session-status" role="status" aria-live="polite">Sesión sin comprobar.</p>
+      <p>Abre una operación, pulsa <strong>Try it out</strong> y después <strong>Execute</strong>. Las escrituras sí modifican datos: no crear reservas de ejemplo en la base de demostración. No compartir capturas de respuestas privadas.</p>
+    </header>
+    <div id="swagger-ui"></div>
+  </body>
+</html>
