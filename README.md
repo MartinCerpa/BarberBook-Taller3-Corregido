@@ -119,6 +119,27 @@ Hubo pruebas de navegador en escritorio y móvil; la revisión humana final debe
 
 ## Uso de Inteligencia Artificial
 
+Durante el desarrollo de BarberBook utilizamos **ChatGPT y Codex (OpenAI)** como herramientas de apoyo para comprender el código, desarrollar funcionalidades, corregir errores, configurar Docker, implementar Swagger y generar pruebas.
+
+**Ejemplo de prompt utilizado:**
+
+> Documentar la API REST real de BarberBook mediante OpenAPI 3, incluyendo sus endpoints, parámetros, respuestas y validaciones, sin modificar la lógica existente.
+
+**Resultados obtenidos:**
+
+Con apoyo de estas herramientas se desarrollaron y mejoraron funcionalidades del backend, la integración con PostgreSQL, la configuración de Docker, la documentación Swagger y las pruebas automatizadas.
+
+**Validación humana:**
+
+Revisamos la estructura del proyecto y comprobamos el funcionamiento de sus tres servicios en Docker. También consultamos PostgreSQL para verificar sus tablas y reservas, probamos la comunicación con la API y revisamos el proceso de creación y confirmación de solicitudes desde la aplicación.
+
+Además, revisamos los cambios generados y simplificamos la documentación para que fuera más clara y fácil de comprender.
+
+**Aprendizajes:**
+
+Este proceso nos permitió comprender mejor la separación entre frontend, backend y base de datos. Aprendimos cómo React se comunica con Express mediante una API REST, cómo PostgreSQL almacena las reservas, cómo Docker permite ejecutar los servicios por separado y cómo Swagger facilita la documentación y prueba de los endpoints.
+
+La inteligencia artificial se utilizó como herramienta de apoyo, mientras que la revisión del funcionamiento y las decisiones finales del proyecto estuvieron a cargo del equipo.
 
 ## Limitaciones conocidas
 
