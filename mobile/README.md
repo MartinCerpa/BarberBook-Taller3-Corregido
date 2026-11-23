@@ -52,3 +52,14 @@ Si la API indica que la hora ya no está disponible, el flujo conserva los datos
 El dispositivo conserva la credencial de la última reserva creada con seguimiento. Las reservas antiguas no reciben una credencial automáticamente y se consultan con el profesional. Si el almacenamiento seguro falla, la app informa que solo mantendrá el acceso durante la sesión. La aplicación no ofrece cancelación.
 
 HTTP en la red local sirve para la demostración con datos ficticios. Usa HTTPS si trabajas con datos reales, ya que la credencial viaja en la cabecera de cada consulta.
+
+## Probar el panel profesional en Expo Go
+
+1. Abre **Panel profesional** desde el catálogo. Usa una cuenta de prueba en un entorno controlado. Para una cuenta real, configura una URL base HTTPS.
+2. Inicia sesión. La app pide `GET /api/auth/session` después del login y abre el panel solo si el servidor reconoce la cookie HttpOnly reenviada por el cliente.
+3. En **Inicio**, comprueba el nombre, las solicitudes pendientes, las confirmadas de hoy y la próxima atención. Abre **Solicitudes** y resuelve solicitudes ficticias mediante el diálogo. Si se solapan, el servidor aplica FIFO y puede pedir resolver una anterior primero.
+4. Abre **Agenda**, elige una fecha y toca **Actualizar agenda**. Comprueba que el servicio, la hora de Chile y el estado coincidan con las reservas confirmadas del día. Agenda muestra los 14 días ofrecidos por la API.
+5. Recorre **Inicio → Solicitudes → Agenda → Ajustes → Inicio** en la barra inferior y comprueba también los accesos de Inicio. Ajustes indica qué se gestiona desde BarberBook Web. Desde otra pestaña, el botón Atrás de Android debe volver a Inicio. Desde Inicio debe volver al catálogo.
+6. Toca **Cerrar sesión** en la cabecera. Vuelve a entrar desde el catálogo y confirma que solicita autenticación. Las escrituras requieren la cookie y `X-CSRF-Token` de la sesión.
+
+Si el login responde correctamente pero la app informa que el dispositivo no reenvía la cookie, comprueba que toda la prueba use un solo host y una URL HTTPS directa, sin redirecciones. Si Expo Go sigue sin devolver la cookie, una alternativa sería validar un development build con manejo nativo de cookies que mantenga HttpOnly. Si se requiere otro medio de autenticación móvil, necesita un diseño de servidor revocable sobre HTTPS que conserve los controles de propiedad de las reservas. La app no copia cookies a JavaScript ni guarda las contraseñas o el CSRF en disco.

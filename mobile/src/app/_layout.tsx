@@ -29,6 +29,7 @@ function Navigation() {
         <Stack.Screen name="index" options={{ title: 'BarberBook', headerShown: false }} />
         <Stack.Screen name="reserva/[professionalId]" options={{ title: 'Reservar una hora', headerTitle: () => <Brand /> }} />
         <Stack.Screen name="mi-reserva" options={{ title: 'Mi reserva', headerTitle: () => <Brand /> }} />
+        <Stack.Screen name="profesional" options={{ title: 'Panel profesional', headerTitle: () => <Brand /> }} />
       </Stack>
     </ThemeProvider>
   );

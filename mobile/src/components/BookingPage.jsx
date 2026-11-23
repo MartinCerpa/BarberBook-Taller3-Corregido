@@ -3,10 +3,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppearance } from '../theme/AppearanceProvider';
 import { palettes, serif } from '../theme/tokens';
 
-export function BookingPage({ title, step, footer, centered, children }) {
+export function BookingPage({ title, step, footer, centered, safeBottom = true, children }) {
   const styles = useBookingStyles();
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.screen}>
+    <SafeAreaView edges={safeBottom ? ['left', 'right', 'bottom'] : ['left', 'right']} style={styles.screen}>
       <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView key={title} style={styles.screen} keyboardShouldPersistTaps="handled"
           contentContainerStyle={[styles.frame, styles.content, centered && styles.centered]}>

@@ -2,7 +2,9 @@ export const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, ''
 
 const estadoDesconocido = 'No pudimos comprobar si la reserva se registró. Consulta al profesional antes de volver a solicitarla.';
 
-async function consultarApi(ruta, { body, token } = {}) {
+export async function consultarApi(ruta, {
+  body, token, session = false, csrfToken, method, uncertainMessage,
+} = {}) {
   if (!apiUrl || !/^https?:\/\/[^/]+\/api$/i.test(apiUrl)) {
     throw new Error('Configura EXPO_PUBLIC_API_URL con la dirección del backend terminada en /api.');
   }
@@ -18,21 +20,21 @@ async function consultarApi(ruta, { body, token } = {}) {
           Accept: 'application/json',
           ...(body && { 'Content-Type': 'application/json' }),
           ...(token && { Authorization: `Bearer ${token}` }),
+          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
         },
         signal: controller.signal,
-        ...(body && {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }),
+        ...(session && { credentials: 'include' }),
+        ...(method && { method }),
+        ...(body && { body: JSON.stringify(body) }),
       });
     } catch {
-      if (body) throw Object.assign(new Error(estadoDesconocido), { uncertain: true });
+      if (uncertainMessage) throw Object.assign(new Error(uncertainMessage), { uncertain: true });
       throw new Error('No pudimos conectar con BarberBook. Revisa tu conexión y la dirección de la API.');
     }
 
     const datos = await respuesta.json().catch(() => null);
-    if (!respuesta.ok && body && respuesta.status >= 500) {
-      throw Object.assign(new Error(estadoDesconocido), { status: respuesta.status, uncertain: true });
+    if (!respuesta.ok && uncertainMessage && respuesta.status >= 500) {
+      throw Object.assign(new Error(uncertainMessage), { status: respuesta.status, uncertain: true });
     }
     if (!respuesta.ok) {
       const mensaje = typeof datos?.error === 'string' && datos.error.trim();
@@ -40,7 +42,7 @@ async function consultarApi(ruta, { body, token } = {}) {
         status: respuesta.status,
       });
     }
-    if (datos === null && !body) {
+    if (datos === null && !uncertainMessage) {
       throw new Error('BarberBook no devolvió una respuesta JSON válida.');
     }
     return datos?.data;
@@ -94,7 +96,9 @@ export async function obtenerDisponibilidad(professionalId, serviceId) {
 }
 
 export async function crearReserva({ serviceId, customerName, customerPhone, startsAt }) {
-  const reserva = await consultarApi('/bookings', { body: { serviceId, customerName, customerPhone, startsAt } });
+  const reserva = await consultarApi('/bookings', {
+    method: 'POST', body: { serviceId, customerName, customerPhone, startsAt }, uncertainMessage: estadoDesconocido,
+  });
   if (!esId(reserva?.id) || !['pending', 'confirmed'].includes(reserva.status)) {
     throw Object.assign(new Error(estadoDesconocido), { uncertain: true });
   }

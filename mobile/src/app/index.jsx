@@ -25,11 +25,10 @@ function Header({ styles, colors, mode, toggle }) {
       <View style={[styles.frame, styles.headerContent]}>
         <Brand />
         <View style={styles.headerActions}>
-          <View accessible accessibilityRole="button" accessibilityState={{ disabled: true }}
-            accessibilityLabel="Panel profesional, próximamente" style={styles.panel}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/profesional')}
+            style={({ pressed }) => [styles.panel, pressed && styles.pressed]}>
             <Text style={styles.panelLabel}>Panel profesional</Text>
-            <Text style={styles.panelStatus}>Próximamente</Text>
-          </View>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={nextIsLight ? 'Activar tema claro' : 'Activar tema oscuro'}
@@ -246,9 +245,8 @@ const createStyles = (colors) => StyleSheet.create({
     gap: 12,
   },
   headerActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%' },
-  panel: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 8, flexShrink: 1 },
-  panelLabel: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  panelStatus: { color: colors.muted, fontSize: 10 },
+  panel: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.accent, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 8, flexShrink: 1 },
+  panelLabel: { color: colors.accent, fontSize: 12, fontWeight: '700' },
   themeToggle: {
     width: 44, height: 44, borderWidth: 1, borderColor: colors.accent,
     backgroundColor: colors.surfaceStrong, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
