@@ -45,7 +45,7 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
     assert.equal(JSON.stringify(spec).includes('password_hash'), false);
   });
 
-  await t.test('las 20 operaciones reales están documentadas sin rutas de negocio inventadas', async () => {
+  await t.test('las 21 operaciones reales están documentadas sin rutas de negocio inventadas', async () => {
     const files = (await readdir(new URL('../src/routes/', import.meta.url))).filter((f) => f.endsWith('.js') && f !== 'documentationRoutes.js');
     const actual = new Set(['get /health']);
     for (const file of files) {
@@ -53,7 +53,7 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
       for (const match of source.matchAll(/router\.(get|post|put|patch|delete)\('([^']+)'/g)) actual.add(`${match[1]} ${match[2].replace(/:([A-Za-z]+)/g, '{$1}')}`);
     }
     const documented = new Set(Object.entries(spec.paths).filter(([p]) => p !== '/openapi.json').flatMap(([p, item]) => Object.keys(item).map((method) => `${method} ${p}`)));
-    assert.equal(actual.size, 20); assert.deepEqual([...documented].sort(), [...actual].sort());
+    assert.equal(actual.size, 21); assert.deepEqual([...documented].sort(), [...actual].sort());
     const ids = Object.values(spec.paths).flatMap((p) => Object.values(p).map((op) => op.operationId));
     assert.equal(ids.length, new Set(ids).size);
   });
@@ -166,6 +166,114 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
     assert.equal((await track(id, token)).body.data.status, 'confirmed');
     const credential = (await db.query('SELECT token_hash FROM booking_tracking_credentials WHERE booking_id=$1', [id])).rows[0];
     assert.ok(credential && credential.token_hash !== token && credential.token_hash === createHash('sha256').update(token).digest('hex'));
+  });
+
+  await t.test('cancelación privada, idempotencia e historial profesional', async (t) => {
+    const operation = spec.paths['/bookings/{id}/cancel'].post;
+    assert.deepEqual(operation.security, [{ bookingTracking: [] }]);
+    assert.equal(operation.requestBody, undefined);
+    for (const code of [200, 400, 401, 404, 409]) assert.ok(operation.responses[code]);
+
+    const service = (await request('/services')).body.data[0];
+    const query = `/availability?professionalId=${service.professional_id}&serviceId=${service.id}&days=14`;
+    const slots = async () => (await request(query)).body.data.flatMap((day) => day.slots);
+    const [competitive, terminal, concurrent] = (await slots()).filter((slot) => slot.isBookable && slot.bookingStatus === 'available');
+    const create = async ({ startsAt }) => {
+      const r = await request('/bookings', {
+        method: 'POST', authenticated: false,
+        body: { serviceId: service.id, customerName: 'Cliente de prueba', customerPhone: '+56900000003', startsAt },
+      });
+      assert.equal(r.status, 201);
+      assert.equal(r.body.data.status, 'pending');
+      return r.body.data;
+    };
+    const cancel = (id, token) => request(`/bookings/${id}/cancel`, { method: 'POST', token, authenticated: false });
+    const track = (booking) => request(`/bookings/${booking.id}/tracking`, { token: booking.trackingToken, authenticated: false });
+    const change = (booking, status) => request(`/professional/bookings/${booking.id}/status`, { method: 'PATCH', body: { status } });
+    const currentSlot = async (slot) => (await slots()).find((item) => item.startsAt === slot.startsAt);
+
+    await t.test('valida ID y token antes de cambiar el estado e impide enumerar reservas', async () => {
+      const a = await create(terminal);
+      const b = await create(terminal);
+      const unauthorized = await cancel(a.id);
+      assert.equal(unauthorized.status, 401);
+      assert.match(unauthorized.headers.get('www-authenticate'), /^Bearer /);
+      assert.equal((await cancel(a.id, 'malformado')).status, 401);
+      assert.equal((await cancel('2147483648', a.trackingToken)).status, 400);
+      const crossed = await cancel(a.id, b.trackingToken);
+      assert.equal(crossed.status, 404);
+      assert.equal((await cancel(a.id, '0'.repeat(64))).status, 404);
+      assert.deepEqual((await cancel(2147483647, a.trackingToken)).body, crossed.body);
+      assert.equal((await track(a)).body.data.status, 'pending');
+      assert.equal((await track(b)).body.data.status, 'pending');
+
+      await db.query("UPDATE bookings SET status='completed' WHERE id=$1", [a.id]);
+      assert.equal((await change(b, 'rejected')).status, 200);
+      assert.equal((await cancel(a.id, a.trackingToken)).status, 409);
+      assert.equal((await cancel(b.id, b.trackingToken)).status, 409);
+      assert.equal((await track(a)).body.data.status, 'completed');
+      assert.equal((await track(b)).body.data.status, 'rejected');
+    });
+
+    await t.test('libera el horario sin decidir solicitudes competidoras y conserva FIFO', async () => {
+      const a = await create(competitive);
+      const b = await create(competitive);
+      const c = await create(competitive);
+      assert.equal((await change(a, 'confirmed')).status, 200);
+      assert.equal((await currentSlot(competitive)).isBookable, false);
+      assert.equal((await request('/professional/settings', { method: 'PATCH', body: { automatic_approval: true } })).status, 200);
+
+      const cancelled = await cancel(a.id, a.trackingToken);
+      assert.equal(cancelled.status, 200);
+      assert.equal(cancelled.headers.get('cache-control'), 'no-store');
+      assertFields(cancelled.body.data, 'TrackedBooking');
+      assert.equal(cancelled.body.data.status, 'cancelled');
+      assert.deepEqual((await cancel(a.id, a.trackingToken)).body, cancelled.body);
+      assert.deepEqual((await track(a)).body, cancelled.body);
+      assert.equal((await track(b)).body.data.status, 'pending');
+      assert.equal((await track(c)).body.data.status, 'pending');
+      const reopened = await currentSlot(competitive);
+      assert.equal(reopened.isBookable, true);
+      assert.equal(reopened.bookingStatus, 'pending');
+
+      const fifo = await change(c, 'confirmed');
+      assert.equal(fifo.status, 409);
+      assert.match(fifo.body.error, /FIFO/);
+      assert.equal((await cancel(b.id, b.trackingToken)).body.data.status, 'cancelled');
+      assert.equal((await track(c)).body.data.status, 'pending');
+      assert.equal((await change(c, 'confirmed')).status, 200);
+      assert.equal((await cancel(c.id, c.trackingToken)).body.data.status, 'cancelled');
+      assert.equal((await currentSlot(competitive)).bookingStatus, 'available');
+
+      for (const state of ['pending', 'confirmed', 'cancelled']) {
+        const bookings = (await request(`/professional/bookings?status=${state}`)).body.data;
+        assert.equal(bookings.some((item) => item.id === a.id), state === 'cancelled');
+      }
+      const agenda = (await request('/professional/agenda')).body.data;
+      assert.equal(agenda.days.flatMap((day) => day.bookings).some((booking) => [a.id, b.id, c.id].includes(booking.id)), false);
+      assert.equal((await db.query('SELECT status FROM bookings WHERE id=$1', [a.id])).rows[0].status, 'cancelled');
+      assert.equal((await request('/professional/settings', { method: 'PATCH', body: { automatic_approval: false } })).status, 200);
+    });
+
+    await t.test('serializa confirmación y cancelación de la misma reserva', async () => {
+      const booking = await create(concurrent);
+      const [confirmation, cancellation] = await Promise.all([
+        change(booking, 'confirmed'), cancel(booking.id, booking.trackingToken),
+      ]);
+      assert.ok([200, 409].includes(confirmation.status));
+      assert.equal(cancellation.status, 200);
+      assert.equal((await track(booking)).body.data.status, 'cancelled');
+      assert.equal((await currentSlot(concurrent)).isBookable, true);
+    });
+
+    await t.test('admite cancelar una reserva pendiente aunque ya haya pasado su hora', async () => {
+      const booking = await create(concurrent);
+      await db.query("UPDATE bookings SET starts_at='2000-01-03T13:00:00Z', ends_at='2000-01-03T13:45:00Z' WHERE id=$1", [booking.id]);
+      const result = await cancel(booking.id, booking.trackingToken);
+      assert.equal(result.status, 200);
+      assert.equal(result.body.data.status, 'cancelled');
+    });
+
     assert.equal((await request('/auth/logout', { method: 'POST' })).status, 200);
     assert.equal((await request('/auth/session')).status, 401);
   });

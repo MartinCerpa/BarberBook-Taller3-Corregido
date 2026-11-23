@@ -89,7 +89,9 @@ Cada profesional puede administrar únicamente sus propios datos.
 
 `POST /api/bookings` conserva el cuerpo actual y añade `data.trackingToken` a la respuesta `201`. Es una credencial aleatoria de 32 bytes que se entrega una vez. Para leer el estado, llama a `GET /api/bookings/:id/tracking` con `Authorization: Bearer <trackingToken>`. La respuesta `200` contiene `id`, `status`, `professionalName`, `serviceName` y `startsAt`. No incluye nombres ni teléfonos de clientes.
 
-El GET responde `400` ante un ID inválido, `401` ante una credencial ausente o mal formada y `404` si el ID y la credencial no coinciden, el ID no existe o la reserva es anterior al seguimiento. El POST y el GET de seguimiento usan `Cache-Control: no-store`.
+Para cancelar, llama a `POST /api/bookings/:id/cancel` sin cuerpo y con la misma cabecera Bearer. Cambia `pending` o `confirmed` a `cancelled`, sin límite de anticipación. Repetir una cancelación devuelve `200` con los mismos campos de seguimiento. Las reservas `completed` y `rejected` devuelven `409`. La reserva y su credencial siguen disponibles para consulta. Si una confirmada ocupaba el horario, la disponibilidad se vuelve a calcular. Las solicitudes competidoras conservan su estado y se siguen resolviendo con las reglas FIFO vigentes.
+
+Consulta y cancelación devuelven `400` ante un ID inválido, `401` si falta la credencial o está mal formada y el mismo `404` si el ID y la credencial no coinciden, el ID no existe o la reserva es anterior al seguimiento. Creación, consulta y cancelación usan `Cache-Control: no-store`. Si se pierde la respuesta de una cancelación, consulta el estado con el GET de seguimiento antes de reintentar.
 
 Al arrancar, la inicialización crea `booking_tracking_credentials` de forma idempotente. Solo las reservas nuevas reciben una fila asociada, en la misma transacción de creación. PostgreSQL guarda el hash SHA-256 de la credencial. No se requiere secreto de firma ni configuración nueva. Para aplicar el cambio a la instalación Docker existente, ejecuta `docker compose up -d --build backend` sin reemplazar el volumen. Usa HTTPS para transportar credenciales fuera de la demostración local.
 

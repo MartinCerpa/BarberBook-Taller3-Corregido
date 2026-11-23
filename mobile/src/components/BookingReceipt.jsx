@@ -1,14 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useRef } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { puedeCancelarReserva } from '../services/bookingHistory';
 import { useAppearance } from '../theme/AppearanceProvider';
 import { palettes, serif } from '../theme/tokens';
-import { formatBookingDate, formatBookingInstant, formatPrice } from '../utils/booking';
+import { formatBookingDate, formatBookingInstant, formatPrice, formatTrackingDate, formatTrackingTime } from '../utils/booking';
+import { Button, Message } from './BookingPage';
 
 const bookingStates = {
   pending: { title: 'Solicitud pendiente', message: 'El profesional aún debe confirmar tu solicitud.', tone: 'warning' },
   confirmed: { title: 'Reserva confirmada', message: 'Tu hora quedó confirmada.', tone: 'success' },
   rejected: { title: 'Solicitud rechazada', message: 'El profesional rechazó esta solicitud.', tone: 'error' },
   cancelled: { title: 'Reserva cancelada', message: 'Esta hora ya no está reservada.', tone: 'muted' },
-  completed: { title: 'Reserva completada', message: 'Esta atención figura como completada.', tone: 'success' },
+  completed: { title: 'Reserva completada', message: 'Esta atención figura como completada.', tone: 'muted' },
 };
 
 function Detail({ label, children, styles }) {
@@ -96,6 +99,77 @@ export function BookingResult({ result, professionalName, service, dateId, time,
   );
 }
 
+export function BookingTrackingCard({ entry, active, onRefresh, onCancel }) {
+  const { colors, mode } = useAppearance();
+  const styles = receiptStyles[mode];
+  const { id, booking, loading, error, cancelling, cancelError, verificationRequired } = entry;
+  const dialogOpen = useRef(false);
+  const status = booking && bookingStates[booking.status];
+  const tone = colors[status?.tone ?? 'muted'];
+  const surfaces = { warning: colors.warningSurface, success: colors.successSurface };
+  const busy = loading || cancelling;
+
+  function confirmCancel() {
+    if (dialogOpen.current) return;
+    dialogOpen.current = true;
+    const close = () => { dialogOpen.current = false; };
+    Alert.alert('¿Cancelar esta reserva?', 'Esta acción cancelará tu solicitud de atención. ¿Deseas continuar?', [
+      { text: 'Volver', style: 'cancel', onPress: close },
+      {
+        text: 'Sí, cancelar reserva', style: 'destructive', onPress: () => {
+          close();
+          onCancel();
+        },
+      },
+    ], { cancelable: true, onDismiss: close });
+  }
+
+  return (
+    <View style={[styles.paper, active && { borderColor: colors.accent }]}>
+      <View style={styles.group}>
+        <View style={styles.trackingHeader}>
+          <Text style={styles.detailLabel}>Reserva #{id}</Text>
+          {status && (
+            <View style={[styles.badge, { backgroundColor: surfaces[status.tone] ?? colors.surfaceStrong }]}>
+              <View aria-hidden style={[styles.statusDot, { backgroundColor: tone }]} />
+              <Text accessibilityLiveRegion="polite" style={[styles.badgeLabel, { color: tone }]}>{status.title}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.trackingIdentity}>
+          <Text accessibilityRole="header" style={styles.groupTitle}>
+            {booking?.professionalName ?? 'Detalles de la reserva'}
+          </Text>
+          {booking && <Text style={styles.detailValue}>{booking.serviceName}</Text>}
+        </View>
+      </View>
+      {booking && (
+        <View style={[styles.group, styles.separator]}>
+          <View style={styles.details}>
+            <Detail label="Fecha" styles={styles}>{formatTrackingDate(booking.startsAt)}</Detail>
+            <Detail label="Hora de Chile" styles={styles}>{formatTrackingTime(booking.startsAt)}</Detail>
+          </View>
+        </View>
+      )}
+      <View style={[styles.group, styles.separator]}>
+        {busy && (
+          <View style={styles.trackingHeader}>
+            <ActivityIndicator color={colors.accent} />
+            <Message>{cancelling ? 'Procesando cancelación…' : 'Consultando estado…'}</Message>
+          </View>
+        )}
+        {!!error && <Message error>{error}{booking ? ' Se muestra el último estado consultado.' : ''}</Message>}
+        {!!cancelError && <Message error>{cancelError}</Message>}
+        <Button label={verificationRequired ? 'Comprobar estado' : error ? 'Reintentar' : 'Actualizar reserva'}
+          onPress={onRefresh} disabled={busy} secondary />
+        {puedeCancelarReserva(booking?.status) && (
+          <Button label="Cancelar reserva" onPress={confirmCancel} disabled={busy || verificationRequired} destructive />
+        )}
+      </View>
+    </View>
+  );
+}
+
 const createStyles = (colors) => StyleSheet.create({
   paper: {
     borderWidth: 1, borderColor: colors.border, borderRadius: 14,
@@ -114,6 +188,11 @@ const createStyles = (colors) => StyleSheet.create({
   detailLabel: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   detailValue: { color: colors.text, fontSize: 16, fontWeight: '600' },
   separator: { borderTopWidth: 1, borderColor: colors.border },
+  trackingHeader: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  trackingIdentity: { gap: 4 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, flexShrink: 1 },
+  badgeLabel: { flexShrink: 1, fontSize: 13, fontWeight: '700' },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   resultHero: { alignItems: 'center', justifyContent: 'center', minHeight: 235, gap: 10, paddingVertical: 26, paddingHorizontal: 18, backgroundColor: colors.surfaceStrong },
   statusIcon: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   clock: { width: 25, height: 25, borderRadius: 13, borderWidth: 2 },

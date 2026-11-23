@@ -1,6 +1,7 @@
 export const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
 
 const estadoDesconocido = 'No pudimos comprobar si la reserva se registró. Consulta al profesional antes de volver a solicitarla.';
+const cancelacionDesconocida = 'No pudimos comprobar si se canceló la reserva.';
 
 export async function consultarApi(ruta, {
   body, token, session = false, csrfToken, method, uncertainMessage,
@@ -105,17 +106,36 @@ export async function crearReserva({ serviceId, customerName, customerPhone, sta
   return reserva;
 }
 
-export async function consultarSeguimiento(id, token) {
+function validarCredencialSeguimiento(id, token) {
   if (!esId(id) || id > 2147483647 || !esCredencialSeguimiento(token)) {
     throw new Error('La credencial de seguimiento guardada no es válida.');
   }
-  const reserva = await consultarApi(`/bookings/${id}/tracking`, { token });
+}
+
+function validarEstadoReserva(id, reserva, requiredStatus) {
   if (reserva?.id !== id || !['pending', 'confirmed', 'rejected', 'cancelled', 'completed'].includes(reserva.status)
     || !esNombre(reserva.professionalName) || !esNombre(reserva.serviceName)
     || typeof reserva.startsAt !== 'string' || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(reserva.startsAt)
-    || !Number.isFinite(Date.parse(reserva.startsAt))) {
+    || !Number.isFinite(Date.parse(reserva.startsAt)) || (requiredStatus && reserva.status !== requiredStatus)) {
+    if (requiredStatus === 'cancelled') {
+      throw Object.assign(new Error(cancelacionDesconocida), { uncertain: true });
+    }
     throw new Error('No pudimos leer el estado de la reserva. Vuelve a consultar.');
   }
   const { status, professionalName, serviceName, startsAt } = reserva;
   return { id, status, professionalName, serviceName, startsAt };
+}
+
+export async function consultarSeguimiento(id, token) {
+  validarCredencialSeguimiento(id, token);
+  const reserva = await consultarApi(`/bookings/${id}/tracking`, { token });
+  return validarEstadoReserva(id, reserva);
+}
+
+export async function cancelarSeguimiento(id, token) {
+  validarCredencialSeguimiento(id, token);
+  const reserva = await consultarApi(`/bookings/${id}/cancel`, {
+    method: 'POST', token, uncertainMessage: cancelacionDesconocida,
+  });
+  return validarEstadoReserva(id, reserva, 'cancelled');
 }

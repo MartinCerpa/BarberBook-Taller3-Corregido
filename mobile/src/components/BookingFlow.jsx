@@ -109,13 +109,13 @@ export function BookingFlow({ professional, services }) {
     return (
       <BookingPage centered footer={
         <>
-          {result.hasTracking && <Button label="Consultar estado" onPress={() => router.push('/mi-reserva')} />}
+          {result.hasTracking && <Button label="Ver mis reservas" onPress={() => router.push('/mi-reserva')} />}
           <Button label="Volver al catálogo" secondary={result.hasTracking} onPress={returnToCatalog} />
         </>
       }>
         <BookingResult result={result} professionalName={professional.name} service={service} dateId={dateId} time={slot.time} />
         {result.hasTracking && !result.trackingSaved && (
-          <Message>El seguimiento de esta reserva está disponible hasta que cierres la aplicación.</Message>
+          <Message>No pudimos guardar el acceso. Puedes consultarlo durante esta sesión y reintentar el guardado en Mis reservas.</Message>
         )}
         {!result.hasTracking && <Message>La API no entregó acceso de seguimiento para esta reserva.</Message>}
       </BookingPage>

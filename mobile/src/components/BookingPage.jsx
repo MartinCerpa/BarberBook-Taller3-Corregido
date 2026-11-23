@@ -33,7 +33,7 @@ export function BookingPage({ title, step, footer, centered, safeBottom = true, 
   );
 }
 
-export function Button({ label, onPress, secondary = false, disabled = false }) {
+export function Button({ label, onPress, secondary = false, disabled = false, destructive = false }) {
   const styles = useBookingStyles();
   return (
     <Pressable
@@ -42,11 +42,11 @@ export function Button({ label, onPress, secondary = false, disabled = false }) 
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.button, secondary && styles.secondary,
+        styles.button, (secondary || destructive) && styles.secondary, destructive && styles.destructive,
         pressed && !disabled && styles.pressed, disabled && styles.disabled,
       ]}
     >
-      <Text style={[styles.buttonText, secondary && styles.secondaryText, disabled && styles.muted]}>{label}</Text>
+      <Text style={[styles.buttonText, secondary && styles.secondaryText, destructive && styles.destructiveText, disabled && styles.muted]}>{label}</Text>
     </Pressable>
   );
 }
@@ -99,8 +99,10 @@ const createStyles = (colors) => StyleSheet.create({
   input: { minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, color: colors.text, backgroundColor: colors.surface, fontSize: 16 },
   button: { minHeight: 48, padding: 12, justifyContent: 'center', alignItems: 'center', borderRadius: 8, backgroundColor: colors.accent },
   secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  destructive: { borderColor: colors.error },
   buttonText: { color: colors.accentText, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   secondaryText: { color: colors.accent },
+  destructiveText: { color: colors.error },
   pressed: { opacity: 0.8 },
   disabled: { backgroundColor: colors.surfaceStrong },
   error: { color: colors.error, fontSize: 15, lineHeight: 21 },

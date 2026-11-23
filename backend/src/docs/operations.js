@@ -39,16 +39,30 @@ export const publicPaths = {
   '/auth/logout': { post: operation('logoutProfessional', 'Autenticación', 'Cerrar sesión', 'Sin cuerpo obligatorio. Cookie y X-CSRF-Token; revoca la sesión SQL y borra la cookie.', ref('Logout'), { write: true }) },
 };
 
-const tracking = operation(
-  'trackBooking', 'Reservas', 'Consultar el estado de una reserva propia',
+const trackingId = { ...resourceId, description: 'Identificador numérico de la reserva. Enviar la credencial solo en Authorization.', schema: { type: 'integer', minimum: 1, maximum: 2147483647 } };
+const trackingOperation = (operationId, summary, description, errors = []) => {
+  const endpoint = operation(operationId, 'Reservas', summary, description, ref('TrackedBooking'), {
+    parameters: [trackingId], errors: [400, 401, 404, ...errors],
+  });
+  endpoint.security = [{ bookingTracking: [] }];
+  endpoint.responses[401].description = 'Credencial de seguimiento ausente o mal formada.';
+  endpoint.responses[404].description = 'No existe una reserva asociada a la combinación del identificador y la credencial.';
+  return endpoint;
+};
+
+const tracking = trackingOperation(
+  'trackBooking', 'Consultar el estado de una reserva propia',
   'Usar Authorization: Bearer con la credencial entregada al crear esa reserva. No devuelve datos de contacto ni la credencial. Las reservas anteriores a la migración no tienen acceso de seguimiento.',
-  ref('TrackedBooking'),
-  { parameters: [{ ...resourceId, description: 'Identificador numérico de la reserva. Enviar la credencial solo en Authorization.', schema: { type: 'integer', minimum: 1, maximum: 2147483647 } }], errors: [400, 401, 404] },
 );
-tracking.security = [{ bookingTracking: [] }];
-tracking.responses[401].description = 'Credencial de seguimiento ausente o mal formada.';
-tracking.responses[404].description = 'No existe una reserva asociada a la combinación del identificador y la credencial.';
 publicPaths['/bookings/{id}/tracking'] = { get: tracking };
+
+const cancel = trackingOperation(
+  'cancelTrackedBooking', 'Cancelar una reserva propia',
+  'Usar Authorization: Bearer con la credencial de esa reserva. Sin cuerpo. Cambia pending o confirmed a cancelled sin límite de anticipación. Repetir devuelve el mismo estado. Conserva la reserva y su seguimiento, sin resolver solicitudes competidoras. Usar solo datos de prueba al ejecutar el ejemplo.',
+  [409],
+);
+cancel.responses[409].description = 'La reserva está rechazada o completada y no se puede cancelar.';
+publicPaths['/bookings/{id}/cancel'] = { post: cancel };
 
 export const professionalPaths = {
   '/professional/bookings': { get: operation('listProfessionalBookings', 'Solicitudes profesionales', 'Consultar reservas propias', 'Orden por created_at e id ascendente (orden FIFO de recepción SQL). Solo admite el filtro status; no acepta professionalId ni otros parámetros. La identidad proviene de la sesión.', array(ref('ProfessionalBooking')), {

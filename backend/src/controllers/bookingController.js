@@ -1,5 +1,5 @@
 import { crearReserva } from '../services/bookingService.js';
-import { consultarReservaPropia } from '../services/bookingTrackingService.js';
+import { cancelarReservaPropia, consultarReservaPropia } from '../services/bookingTrackingService.js';
 
 export async function registrarReserva(req, res, next) {
   res.set('Cache-Control', 'no-store');
@@ -45,7 +45,7 @@ export async function registrarReserva(req, res, next) {
   }
 }
 
-export async function seguirReserva(req, res) {
+const responderSeguimiento = (operacion) => async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const id = Number(req.params.id);
   if (!/^[1-9]\d*$/.test(req.params.id) || !Number.isInteger(id) || id > 2147483647) {
@@ -58,8 +58,11 @@ export async function seguirReserva(req, res) {
     return res.status(401).json({ error: 'Se requiere una credencial de seguimiento válida.' });
   }
 
-  const booking = await consultarReservaPropia(req.app.locals.database, id, token);
+  const booking = await operacion(req.app.locals.database, id, token);
   // La misma respuesta cubre una credencial ajena, una reserva antigua y un ID inexistente.
   if (!booking) return res.status(404).json({ error: 'No se encontró una reserva para esta credencial.' });
   return res.json({ data: booking });
-}
+};
+
+export const seguirReserva = responderSeguimiento(consultarReservaPropia);
+export const cancelarReserva = responderSeguimiento(cancelarReservaPropia);

@@ -160,7 +160,7 @@ export default function App() {
           onPress={() => router.push('/mi-reserva')}
           style={({ pressed }) => [styles.trackingLink, pressed && styles.pressed]}
         >
-          <Text style={styles.trackingLabel}>Mi reserva</Text>
+          <Text style={styles.trackingLabel}>Mis reservas</Text>
         </Pressable>
         {!catalog && !error && (
           <View style={[styles.card, styles.loading]} accessibilityLiveRegion="polite">

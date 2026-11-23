@@ -21,6 +21,11 @@ const bookingDateTime = new Intl.DateTimeFormat('es-CL', {
 
 export const formatBookingInstant = (startsAt) => bookingDateTime.format(new Date(startsAt));
 
+const trackingDate = new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', dateStyle: 'long' });
+const trackingTime = new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', timeStyle: 'short', hourCycle: 'h23' });
+export const formatTrackingDate = (startsAt) => trackingDate.format(new Date(startsAt));
+export const formatTrackingTime = (startsAt) => trackingTime.format(new Date(startsAt));
+
 export function getSlotStatus(slot) {
   if (!slot?.isBookable) return 'unavailable';
   return slot.bookingStatus === 'pending' ? 'pending' : 'available';

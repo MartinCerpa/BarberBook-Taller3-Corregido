@@ -41,17 +41,27 @@ Compara los resultados con el primer perfil que aparece en la app. Si hay varios
 
 Si la API indica que la hora ya no está disponible, el flujo conserva los datos de contacto y recarga las horas. Si se pierde la respuesta del envío, verifica con el profesional si la reserva quedó registrada antes de intentarlo de nuevo.
 
-## Consultar Mi reserva
+## Consultar Mis reservas
 
-1. Desde la raíz del repositorio, reconstruye el backend con `docker compose up -d --build backend`. Al arrancar, el backend crea la tabla de credenciales si todavía no existe. Usa el volumen PostgreSQL existente.
-2. Inicia el proyecto móvil con `npm start` desde `mobile/` y abre Expo Go. Confirma que `EXPO_PUBLIC_API_URL` apunta a ese backend.
-3. Crea una reserva con datos ficticios desde el móvil. Pulsa **Consultar estado** y conserva su número para compararlo con el panel web.
-4. Desde el panel profesional web, resuelve la solicitud de prueba según las reglas vigentes. En **Mi reserva**, toca **Actualizar estado** y comprueba que aparece el cambio del mismo número de reserva.
-5. Cierra y vuelve a abrir Expo Go. Entra en **Mi reserva** desde el catálogo para recuperar el acceso.
+1. Usa un backend con la API de seguimiento habilitada. Inicia el proyecto móvil con `npm start` desde `mobile/`, abre Expo Go y comprueba que `EXPO_PUBLIC_API_URL` apunta al entorno de pruebas.
+2. En ese entorno, registra varias solicitudes con datos ficticios y horas distintas. Pulsa **Ver mis reservas** al finalizar o entra en **Mis reservas** desde el catálogo.
+3. Desliza las tarjetas o usa las flechas. Comprueba los números, el contador, el orden de las próximas atenciones y las fechas y horas de Chile.
+4. Tras resolver una solicitud de prueba en el panel profesional, toca **Actualizar reserva** en su tarjeta. Luego comprueba **Actualizar todas**. Al cortar y recuperar la conexión, verifica que las tarjetas se conservan y que **Reintentar** recupera su estado.
+5. Cierra y vuelve a abrir Expo Go. Comprueba que reaparecen todas las tarjetas. Si ya tenías una credencial en la versión anterior, usa la misma instalación y URL para verificar que también aparece.
 
-El dispositivo conserva la credencial de la última reserva creada con seguimiento. Las reservas antiguas no reciben una credencial automáticamente y se consultan con el profesional. Si el almacenamiento seguro falla, la app informa que solo mantendrá el acceso durante la sesión. La aplicación no ofrece cancelación.
+Cada reserva conserva su propia credencial en SecureStore. El historial se separa por URL de API y la credencial anterior se migra automáticamente en su entorno original. Si falla el guardado, la app mantiene los accesos nuevos durante la sesión y vuelve a intentar guardarlos al actualizar todas las reservas. Las reservas sin una credencial conservada, incluidas las antiguas o las de otro dispositivo, se consultan con el profesional.
+
+### Cancelar una reserva en Expo Go
+
+1. Conecta Expo Go a un backend actualizado en un entorno de pruebas. Usa únicamente reservas ficticias.
+2. En **Mis reservas**, abre una reserva pendiente o confirmada y pulsa **Cancelar reserva**. Prueba **Volver** y verifica que su estado sigue igual. Abre otra vez el diálogo y confirma con **Sí, cancelar reserva**.
+3. Comprueba que la tarjeta desaparece al confirmarse la cancelación, el contador se actualiza y las demás tarjetas siguen visibles. Cierra y vuelve a abrir Expo Go para comprobar que la reserva cancelada no reaparece. Si era la última, debe verse **Todavía no tienes reservas**.
+4. En el panel profesional, actualiza las solicitudes y la agenda. Comprueba que la cancelada aparece entre las resueltas del panel móvil y que las competidoras siguen pendientes. Si la cancelada estaba confirmada, verifica que la hora vuelva a estar disponible cuando no exista otra ocupación.
+5. Para probar una pérdida de conexión, desconecta el teléfono antes de confirmar. Después de restablecer la conexión, usa **Comprobar estado**. La app retira la tarjeta y su credencial solo cuando la API devuelve `cancelled`.
 
 HTTP en la red local sirve para la demostración con datos ficticios. Usa HTTPS si trabajas con datos reales, ya que la credencial viaja en la cabecera de cada consulta.
+
+Ejecuta `npm run test:booking-tracking` desde `mobile/` para probar el almacenamiento, la migración, la consulta y la cancelación con mocks. Estas pruebas no contactan el backend ni escriben reservas.
 
 ## Probar el panel profesional en Expo Go
 
