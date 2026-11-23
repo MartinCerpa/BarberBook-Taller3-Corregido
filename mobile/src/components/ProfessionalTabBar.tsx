@@ -1,16 +1,15 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { palettes } from '../theme/tokens';
+import { useAppearance } from '../theme/AppearanceProvider';
 
 export const professionalTabs: Record<string, { label: string; icon: ImageSourcePropType }> = {
-  index: { label: 'Inicio', icon: require('../../assets/professional/home.png') },
+  '(inicio)': { label: 'Inicio', icon: require('../../assets/professional/home.png') },
   solicitudes: { label: 'Solicitudes', icon: require('../../assets/professional/requests.png') },
   agenda: { label: 'Agenda', icon: require('../../assets/professional/calendar.png') },
-  ajustes: { label: 'Ajustes', icon: require('../../assets/professional/settings.png') },
 };
 
 export function ProfessionalTabBar({ state, emitter, navigateToTab, insets, writing }: BottomTabBarProps & { writing: boolean }) {
-  const colors = palettes.dark;
+  const { colors } = useAppearance();
   return (
     <View style={[styles.bar, {
       backgroundColor: colors.background,

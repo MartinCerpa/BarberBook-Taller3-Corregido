@@ -13,7 +13,8 @@ import { useAppearance } from '../../theme/AppearanceProvider';
 const returnToCatalog = () => router.dismissTo('/');
 export default function ProfessionalLayout() {
   const { colors } = useAppearance();
-  const [, section] = useSegments();
+  const [, section, child] = useSegments();
+  const sectionTitle = child === 'ajustes' ? 'Ajustes' : professionalTabs[section ?? '(inicio)']?.label ?? 'Inicio';
   const [session, setSession] = useState(undefined);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState('');
@@ -79,7 +80,7 @@ export default function ProfessionalLayout() {
   return (
     <>
       <Stack.Screen options={{
-        headerTitle: () => <Brand caption={session ? professionalTabs[section ?? 'index']?.label ?? 'Inicio' : undefined} />,
+        headerTitle: () => <Brand caption={session ? sectionTitle : undefined} />,
         headerRight: () => session ? (
           <Pressable accessibilityRole="button" accessibilityState={{ disabled: writing }} disabled={writing}
             onPress={logout} style={styles.logout}>
@@ -91,10 +92,10 @@ export default function ProfessionalLayout() {
       }} />
       {session ? (
         <ProfessionalSession.Provider value={{ session, onSession: setSession, onSessionEnd: endSession, writing, beginWrite, endWrite }}>
-          <Tabs initialRouteName="index" backBehavior="initialRoute" screenOptions={{ headerShown: false }}
+          <Tabs initialRouteName="(inicio)" backBehavior="initialRoute" screenOptions={{ headerShown: false }}
             tabBar={(props) => <ProfessionalTabBar {...props} writing={writing} />}>
             {Object.entries(professionalTabs).map(([name, { label }]) => (
-              <Tabs.Screen key={name} name={name} options={{ title: label }} />
+              <Tabs.Screen key={name} name={name} options={{ title: label, popToTopOnBlur: name === '(inicio)' }} />
             ))}
           </Tabs>
         </ProfessionalSession.Provider>

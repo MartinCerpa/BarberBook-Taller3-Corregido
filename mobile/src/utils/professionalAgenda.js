@@ -18,6 +18,22 @@ export function confirmedInOrder(bookings) {
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
 }
 
+export function splitProfessionalRequests(bookings) {
+  const byStart = (a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at);
+  return {
+    // El orden estable en empates conserva la prioridad de recepción que entrega la API.
+    pending: bookings.filter((booking) => booking.status === 'pending').sort(byStart),
+    history: bookings.filter((booking) => booking.status !== 'pending').sort((a, b) => byStart(b, a)),
+  };
+}
+
+export function summarizeAgendaDate(bookings, now = new Date()) {
+  const confirmed = confirmedInOrder(bookings);
+  const upcoming = confirmed.find((booking) => Date.parse(booking.starts_at) >= now.getTime());
+  const featured = upcoming ?? (confirmed.length === 1 ? confirmed[0] : undefined);
+  return { confirmed, featured, upcoming: Boolean(upcoming) };
+}
+
 export function summarizeProfessionalDay(bookings, now = new Date()) {
   const today = dateInChile(now);
   const confirmed = confirmedInOrder(bookings);

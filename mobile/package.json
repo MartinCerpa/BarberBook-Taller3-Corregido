@@ -29,7 +29,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test:booking-tracking": "node --experimental-vm-modules --test test/bookingTracking.test.mjs"
+    "test:booking-tracking": "node --experimental-vm-modules --test test/bookingTracking.test.mjs",
+    "test:professional-panel": "node --experimental-vm-modules --test test/professionalPanel.test.mjs"
   },
   "private": true
 }
