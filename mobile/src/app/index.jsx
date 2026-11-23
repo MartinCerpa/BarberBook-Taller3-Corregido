@@ -156,6 +156,13 @@ export default function App() {
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.app}>
       <Header styles={styles} colors={colors} mode={mode} toggle={toggle} />
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.frame, styles.content]}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/mi-reserva')}
+          style={({ pressed }) => [styles.trackingLink, pressed && styles.pressed]}
+        >
+          <Text style={styles.trackingLabel}>Mi reserva</Text>
+        </Pressable>
         {!catalog && !error && (
           <View style={[styles.card, styles.loading]} accessibilityLiveRegion="polite">
             <ActivityIndicator color={colors.accent} />
@@ -248,6 +255,11 @@ const createStyles = (colors) => StyleSheet.create({
   },
   scroll: { flex: 1 },
   content: { paddingTop: 16, paddingBottom: 24, gap: 24 },
+  trackingLink: {
+    alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 12,
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 8,
+  },
+  trackingLabel: { color: colors.accent, fontSize: 14, fontWeight: '700' },
   card: { padding: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14 },
   cover: {
     height: 158,

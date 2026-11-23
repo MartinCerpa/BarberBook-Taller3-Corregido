@@ -55,6 +55,13 @@ export const schemas = {
     description: 'Los campos adicionales se ignoran. Los límites de nombre/teléfono corresponden al esquema SQL; sobrepasarlos puede producir un error interno en el backend actual.',
   },
   Booking: object(booking),
+  BookingCreated: { allOf: [ref('Booking'), object({
+    trackingToken: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'Credencial privada emitida una sola vez. Guardar de forma segura.' },
+  })] },
+  TrackedBooking: object({
+    id, status: { type: 'string', enum: states }, startsAt: instant,
+    professionalName: profile.name, serviceName: service.name,
+  }),
   ProfessionalBooking: { allOf: [ref('Booking'), object({ professional_id: id, service_name: text('Servicio de ejemplo', 'Nombre histórico, con respaldo del catálogo si todavía no hay copia.') })] },
   BookingStatusUpdate: { ...object({ status: { type: 'string', enum: ['confirmed', 'rejected'], example: 'confirmed' } }), additionalProperties: false },
   Login: { ...object({ email: { type: 'string', format: 'email', maxLength: 254, example: 'profesional@example.invalid' }, password: { type: 'string', format: 'password', writeOnly: true, minLength: 1, maxLength: 128, description: 'Clave privada. Usar preferentemente el formulario protegido superior, no pegarla en ejemplos o capturas.' } }), additionalProperties: false },

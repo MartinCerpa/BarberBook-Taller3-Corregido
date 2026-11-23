@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { registrarReserva } from '../controllers/bookingController.js';
+import { registrarReserva, seguirReserva } from '../controllers/bookingController.js';
 
 const router = Router();
 
 router.post('/bookings', registrarReserva);
+router.get('/bookings/:id/tracking', seguirReserva);
 
 export default router;

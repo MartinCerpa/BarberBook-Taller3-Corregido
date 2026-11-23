@@ -12,6 +12,15 @@ export const formatPrice = (price) => currency.format(price);
 // El identificador es una fecha civil de Chile. UTC conserva ese día al formatearlo.
 export const formatBookingDate = (dateId) => calendarDate.format(new Date(`${dateId}T00:00:00Z`));
 
+const bookingDateTime = new Intl.DateTimeFormat('es-CL', {
+  timeZone: 'America/Santiago',
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  hourCycle: 'h23',
+});
+
+export const formatBookingInstant = (startsAt) => bookingDateTime.format(new Date(startsAt));
+
 export function getSlotStatus(slot) {
   if (!slot?.isBookable) return 'unavailable';
   return slot.bookingStatus === 'pending' ? 'pending' : 'available';

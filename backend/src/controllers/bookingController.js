@@ -1,6 +1,8 @@
 import { crearReserva } from '../services/bookingService.js';
+import { consultarReservaPropia } from '../services/bookingTrackingService.js';
 
 export async function registrarReserva(req, res, next) {
+  res.set('Cache-Control', 'no-store');
   const { serviceId, customerName, customerPhone, startsAt } = req.body ?? {};
 
   const fecha = new Date(startsAt);
@@ -41,4 +43,23 @@ export async function registrarReserva(req, res, next) {
 
     next(error);
   }
+}
+
+export async function seguirReserva(req, res) {
+  res.set('Cache-Control', 'no-store');
+  const id = Number(req.params.id);
+  if (!/^[1-9]\d*$/.test(req.params.id) || !Number.isInteger(id) || id > 2147483647) {
+    return res.status(400).json({ error: 'Identificador de reserva inválido.' });
+  }
+
+  const token = /^Bearer ([0-9a-f]{64})$/i.exec(req.get('Authorization') ?? '')?.[1];
+  if (!token) {
+    res.set('WWW-Authenticate', 'Bearer realm="booking-tracking"');
+    return res.status(401).json({ error: 'Se requiere una credencial de seguimiento válida.' });
+  }
+
+  const booking = await consultarReservaPropia(req.app.locals.database, id, token);
+  // La misma respuesta cubre una credencial ajena, una reserva antigua y un ID inexistente.
+  if (!booking) return res.status(404).json({ error: 'No se encontró una reserva para esta credencial.' });
+  return res.json({ data: booking });
 }

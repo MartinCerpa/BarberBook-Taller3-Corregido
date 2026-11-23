@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { router, usePreventRemove } from 'expo-router';
 import { ActivityIndicator, Text, TextInput, View } from 'react-native';
-import { crearReserva, obtenerDisponibilidad } from '../services/api';
+import { crearReserva, esCredencialSeguimiento, obtenerDisponibilidad } from '../services/api';
+import { guardarSeguimiento } from '../services/bookingTracking';
 import { useAppearance } from '../theme/AppearanceProvider';
 import { formatPrice, getSlotStatus, validateCustomer } from '../utils/booking';
 import { BookingPage, Button, Message, Option, useBookingStyles } from './BookingPage';
@@ -81,12 +82,15 @@ export function BookingFlow({ professional, services }) {
         sending.current = false;
         return;
       }
-      setResult(await crearReserva({
+      const booking = await crearReserva({
         serviceId: service.id,
         customerName: name,
         customerPhone: phone,
         startsAt: slot.startsAt,
-      }));
+      });
+      const hasTracking = esCredencialSeguimiento(booking.trackingToken);
+      const trackingSaved = hasTracking && await guardarSeguimiento(booking.id, booking.trackingToken);
+      setResult({ id: booking.id, status: booking.status, hasTracking, trackingSaved });
     } catch (cause) {
       setError(cause.message);
       setUncertain(!!cause.uncertain);
@@ -103,8 +107,17 @@ export function BookingFlow({ professional, services }) {
   const returnToCatalog = () => router.dismissTo('/');
   if (result) {
     return (
-      <BookingPage centered footer={<Button label="Volver al catálogo" onPress={returnToCatalog} />}>
+      <BookingPage centered footer={
+        <>
+          {result.hasTracking && <Button label="Consultar estado" onPress={() => router.push('/mi-reserva')} />}
+          <Button label="Volver al catálogo" secondary={result.hasTracking} onPress={returnToCatalog} />
+        </>
+      }>
         <BookingResult result={result} professionalName={professional.name} service={service} dateId={dateId} time={slot.time} />
+        {result.hasTracking && !result.trackingSaved && (
+          <Message>El seguimiento de esta reserva está disponible hasta que cierres la aplicación.</Message>
+        )}
+        {!result.hasTracking && <Message>La API no entregó acceso de seguimiento para esta reserva.</Message>}
       </BookingPage>
     );
   }

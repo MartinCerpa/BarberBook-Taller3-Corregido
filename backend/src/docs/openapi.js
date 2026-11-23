@@ -26,6 +26,7 @@ export const openapi = {
   components: {
     schemas,
     securitySchemes: {
+      bookingTracking: { type: 'http', scheme: 'bearer', bearerFormat: 'token opaco', description: 'Credencial específica de una reserva. Usar HTTPS fuera de la demostración local.' },
       cookieSession: { type: 'apiKey', in: 'cookie', name: 'barberbook_t3_session', description: 'Cookie HttpOnly/SameSite Strict/path=/api, gestionada por el navegador. No pegar el token en Authorize. Usar el formulario de sesión superior o iniciar sesión en BarberBook con el mismo host.' },
       csrfToken: { type: 'apiKey', in: 'header', name: 'X-CSRF-Token', description: 'Obligatorio en escrituras privadas. La página de documentación lo obtiene de la sesión y lo añade automáticamente desde memoria. No es una alternativa a la cookie: se requieren ambos.' },
     },

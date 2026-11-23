@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     CHECK (ends_at > starts_at)
 );
 
+-- Las reservas previas conservan sus datos y no adquieren acceso público retroactivo.
+CREATE TABLE IF NOT EXISTS booking_tracking_credentials (
+    booking_id INTEGER PRIMARY KEY REFERENCES bookings(id) ON DELETE CASCADE,
+    token_hash CHAR(64) NOT NULL UNIQUE
+);
+
 -- Minutos de la jornada civil del profesional en America/Santiago.
 -- Domingo=0; varios intervalos permiten representar el descanso de mediodía.
 CREATE TABLE IF NOT EXISTS working_hours (

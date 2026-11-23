@@ -40,3 +40,15 @@ Compara los resultados con el primer perfil que aparece en la app. Si hay varios
 5. Comprueba el número y el estado que muestra la app. Busca la misma reserva en la sección correspondiente del panel web con una sesión profesional. Para volver a empezar, toca **Volver al catálogo**.
 
 Si la API indica que la hora ya no está disponible, el flujo conserva los datos de contacto y recarga las horas. Si se pierde la respuesta del envío, verifica con el profesional si la reserva quedó registrada antes de intentarlo de nuevo.
+
+## Consultar Mi reserva
+
+1. Desde la raíz del repositorio, reconstruye el backend con `docker compose up -d --build backend`. Al arrancar, el backend crea la tabla de credenciales si todavía no existe. Usa el volumen PostgreSQL existente.
+2. Inicia el proyecto móvil con `npm start` desde `mobile/` y abre Expo Go. Confirma que `EXPO_PUBLIC_API_URL` apunta a ese backend.
+3. Crea una reserva con datos ficticios desde el móvil. Pulsa **Consultar estado** y conserva su número para compararlo con el panel web.
+4. Desde el panel profesional web, resuelve la solicitud de prueba según las reglas vigentes. En **Mi reserva**, toca **Actualizar estado** y comprueba que aparece el cambio del mismo número de reserva.
+5. Cierra y vuelve a abrir Expo Go. Entra en **Mi reserva** desde el catálogo para recuperar el acceso.
+
+El dispositivo conserva la credencial de la última reserva creada con seguimiento. Las reservas antiguas no reciben una credencial automáticamente y se consultan con el profesional. Si el almacenamiento seguro falla, la app informa que solo mantendrá el acceso durante la sesión. La aplicación no ofrece cancelación.
+
+HTTP en la red local sirve para la demostración con datos ficticios. Usa HTTPS si trabajas con datos reales, ya que la credencial viaja en la cabecera de cada consulta.

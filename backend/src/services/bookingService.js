@@ -1,5 +1,6 @@
 import { pool } from '../database/connection.js';
 import { assertBookingAvailable } from './availabilityService.js';
+import { emitirCredencialSeguimiento } from './bookingTrackingService.js';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 const storedService = (booking) => ({ id: booking.service_id, professional_id: booking.professional_id,
@@ -77,8 +78,9 @@ export async function crearReserva(datos, database = pool) {
     if (servicio.automatic_approval && !await earlierEligibleRequest(client, { ...booking, professional_id: servicio.professional_id })) {
       booking = (await client.query("UPDATE bookings SET status='confirmed' WHERE id=$1 RETURNING *", [booking.id])).rows[0];
     }
+    const trackingToken = await emitirCredencialSeguimiento(client, booking.id);
     await client.query('COMMIT');
-    return booking;
+    return { ...booking, trackingToken };
 
   } catch (error) {
     await client.query('ROLLBACK');

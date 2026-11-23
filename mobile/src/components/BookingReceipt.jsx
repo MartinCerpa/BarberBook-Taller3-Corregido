@@ -1,7 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useAppearance } from '../theme/AppearanceProvider';
 import { palettes, serif } from '../theme/tokens';
-import { formatBookingDate, formatPrice } from '../utils/booking';
+import { formatBookingDate, formatBookingInstant, formatPrice } from '../utils/booking';
+
+const bookingStates = {
+  pending: { title: 'Solicitud pendiente', message: 'El profesional aún debe confirmar tu solicitud.', tone: 'warning' },
+  confirmed: { title: 'Reserva confirmada', message: 'Tu hora quedó confirmada.', tone: 'success' },
+  rejected: { title: 'Solicitud rechazada', message: 'El profesional rechazó esta solicitud.', tone: 'error' },
+  cancelled: { title: 'Reserva cancelada', message: 'Esta hora ya no está reservada.', tone: 'muted' },
+  completed: { title: 'Reserva completada', message: 'Esta atención figura como completada.', tone: 'success' },
+};
 
 function Detail({ label, children, styles }) {
   return (
@@ -46,29 +54,32 @@ export function BookingReview({ professionalName, service, dateId, time, name, p
   );
 }
 
-export function BookingResult({ result, professionalName, service, dateId, time }) {
+export function BookingResult({ result, professionalName, service, dateId, time, startsAt }) {
   const { mode, colors } = useAppearance();
   const styles = receiptStyles[mode];
-  const confirmed = result.status === 'confirmed';
-  const tone = confirmed ? colors.success : colors.warning;
+  const status = bookingStates[result.status];
+  const tone = colors[status.tone];
+  const iconBackground = {
+    warning: colors.warningSurface, success: colors.successSurface, error: colors.surface, muted: colors.surface,
+  }[status.tone];
 
   return (
     <View style={styles.paper}>
       <View style={styles.resultHero}>
-        <View aria-hidden style={[styles.statusIcon, { backgroundColor: confirmed ? colors.successSurface : colors.warningSurface }]}>
-          {confirmed ? <View style={[styles.check, { borderColor: tone }]} /> : (
+        <View aria-hidden style={[styles.statusIcon, { backgroundColor: iconBackground }]}>
+          {status.tone === 'success' && <View style={[styles.check, { borderColor: tone }]} />}
+          {result.status === 'pending' && (
             <View style={[styles.clock, { borderColor: tone }]}>
               <View style={[styles.clockHands, { borderColor: tone }]} />
             </View>
           )}
+          {(result.status === 'rejected' || result.status === 'cancelled') && (
+            <View style={[styles.inactiveMark, { borderColor: tone }]} />
+          )}
         </View>
         <Text style={[styles.reference, { color: tone }]}>Reserva #{result.id}</Text>
-        <Text accessibilityRole="header" style={styles.resultTitle}>
-          {confirmed ? 'Reserva confirmada' : 'Solicitud pendiente'}
-        </Text>
-        <Text style={styles.resultMessage}>
-          {confirmed ? 'Tu hora quedó confirmada.' : 'El profesional aún debe confirmar tu solicitud.'}
-        </Text>
+        <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={styles.resultTitle}>{status.title}</Text>
+        <Text style={styles.resultMessage}>{status.message}</Text>
       </View>
       <View style={[styles.group, styles.separator]}>
         <View style={styles.details}>
@@ -76,7 +87,9 @@ export function BookingResult({ result, professionalName, service, dateId, time 
           <Detail label="Servicio" styles={styles}>{service.name}</Detail>
         </View>
         <View style={styles.details}>
-          <Detail label="Fecha y hora de Chile" styles={styles}>{formatBookingDate(dateId)} · {time}</Detail>
+          <Detail label="Fecha y hora de Chile" styles={styles}>
+            {startsAt ? formatBookingInstant(startsAt) : `${formatBookingDate(dateId)} · ${time}`}
+          </Detail>
         </View>
       </View>
     </View>
@@ -106,6 +119,7 @@ const createStyles = (colors) => StyleSheet.create({
   clock: { width: 25, height: 25, borderRadius: 13, borderWidth: 2 },
   clockHands: { position: 'absolute', top: 4, left: 9, width: 6, height: 7, borderLeftWidth: 2, borderBottomWidth: 2 },
   check: { width: 10, height: 19, borderRightWidth: 3, borderBottomWidth: 3, transform: [{ rotate: '45deg' }], marginTop: -4 },
+  inactiveMark: { width: 20, borderBottomWidth: 2 },
   reference: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   resultTitle: { color: colors.text, fontFamily: serif, fontSize: 29, fontWeight: '700', textAlign: 'center' },
   resultMessage: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320 },

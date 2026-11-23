@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { readFile, readdir } from 'node:fs/promises';
 import pg from 'pg';
@@ -22,12 +22,13 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}/api`;
   let cookie, csrf, spec;
-  async function request(path, { method = 'GET', body, authenticated = true, includeCsrf = true } = {}) {
+  async function request(path, { method = 'GET', body, authenticated = true, includeCsrf = true, token } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (cookie && authenticated) headers.Cookie = cookie;
     if (csrf && includeCsrf && authenticated) headers['X-CSRF-Token'] = csrf;
+    if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
-    return { status: response.status, body: await response.json(), cookie: response.headers.get('set-cookie') };
+    return { status: response.status, body: await response.json(), cookie: response.headers.get('set-cookie'), headers: response.headers };
   }
   function properties(schema) {
     if (schema.$ref) return properties(spec.components.schemas[schema.$ref.split('/').at(-1)]);
@@ -44,7 +45,7 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
     assert.equal(JSON.stringify(spec).includes('password_hash'), false);
   });
 
-  await t.test('las 19 operaciones reales están documentadas sin rutas de negocio inventadas', async () => {
+  await t.test('las 20 operaciones reales están documentadas sin rutas de negocio inventadas', async () => {
     const files = (await readdir(new URL('../src/routes/', import.meta.url))).filter((f) => f.endsWith('.js') && f !== 'documentationRoutes.js');
     const actual = new Set(['get /health']);
     for (const file of files) {
@@ -52,7 +53,7 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
       for (const match of source.matchAll(/router\.(get|post|put|patch|delete)\('([^']+)'/g)) actual.add(`${match[1]} ${match[2].replace(/:([A-Za-z]+)/g, '{$1}')}`);
     }
     const documented = new Set(Object.entries(spec.paths).filter(([p]) => p !== '/openapi.json').flatMap(([p, item]) => Object.keys(item).map((method) => `${method} ${p}`)));
-    assert.equal(actual.size, 19); assert.deepEqual([...documented].sort(), [...actual].sort());
+    assert.equal(actual.size, 20); assert.deepEqual([...documented].sort(), [...actual].sort());
     const ids = Object.values(spec.paths).flatMap((p) => Object.values(p).map((op) => op.operationId));
     assert.equal(ids.length, new Set(ids).size);
   });
@@ -112,15 +113,59 @@ test('OpenAPI y documentación: contrato y HTTP con PostgreSQL aislado', { timeo
     const slot = agenda.days.flatMap((d) => d.slots)[0]; assertFields(slot, 'AgendaSlot'); assertFields(slot.services[0], 'AgendaServiceOffer');
   });
 
-  await t.test('reserva real solo en base aislada conserva el contrato y el sistema de reservas', async () => {
+  await t.test('seguimiento privado, reservas competitivas y estados en PostgreSQL aislado', async () => {
     const service = (await request('/services')).body.data[0];
     const days = (await request(`/availability?professionalId=${service.professional_id}&serviceId=${service.id}&days=14`)).body.data;
     const slot = days.flatMap((d) => d.slots).find((s) => s.isBookable && s.bookingStatus === 'available'); assert.ok(slot);
+    await db.query('DROP TABLE booking_tracking_credentials');
+    const legacy = (await db.query(
+      `INSERT INTO bookings(service_id, customer_name, customer_phone, starts_at, ends_at, status)
+       VALUES ($1, 'Cliente sin seguimiento', '+56900000002', $2, $3, 'rejected') RETURNING id`,
+      [service.id, slot.startsAt, slot.endsAt],
+    )).rows[0];
+    await initializeDatabase(db);
+    assert.equal((await db.query('SELECT status FROM bookings WHERE id=$1', [legacy.id])).rows[0].status, 'rejected');
     const r = await request('/bookings', { method: 'POST', body: { serviceId: service.id, customerName: 'Cliente aislado', customerPhone: '+56900000000', startsAt: slot.startsAt } });
-    assert.equal(r.status, 201); assertFields(r.body.data, 'Booking'); assert.equal(r.body.data.status, 'pending');
-    const list = await request('/professional/bookings?status=pending'); assertFields(list.body.data[0], 'ProfessionalBooking');
-    const confirmed = await request(`/professional/bookings/${r.body.data.id}/status`, { method: 'PATCH', body: { status: 'confirmed' } });
+    const other = await request('/bookings', { method: 'POST', body: { serviceId: service.id, customerName: 'Otro cliente aislado', customerPhone: '+56900000001', startsAt: slot.startsAt } });
+    assert.equal(r.status, 201); assertFields(r.body.data, 'BookingCreated'); assert.equal(r.body.data.status, 'pending');
+    assert.equal(other.status, 201);
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+    const { id, trackingToken: token } = r.body.data;
+    const { id: otherId, trackingToken: otherToken } = other.body.data;
+    assert.ok(/^[0-9a-f]{64}$/.test(token) && /^[0-9a-f]{64}$/.test(otherToken) && token !== otherToken);
+    const track = (bookingId, credential) => request(`/bookings/${bookingId}/tracking`, { token: credential, authenticated: false });
+    const absent = await track(id);
+    assert.equal(absent.status, 401); assert.match(absent.headers.get('www-authenticate'), /^Bearer /);
+    assert.equal((await track(id, 'invalida')).status, 401);
+    assert.equal((await track('2147483648', token)).status, 400);
+    const denied = await track(otherId, token);
+    assert.equal(denied.status, 404);
+    assert.equal((await track(id, otherToken)).status, 404);
+    assert.deepEqual((await track(2147483647, token)).body, denied.body);
+    const pending = await track(id, token);
+    assert.equal(pending.status, 200); assertFields(pending.body.data, 'TrackedBooking');
+    assert.equal(pending.headers.get('cache-control'), 'no-store');
+    assert.equal(pending.body.data.status, 'pending');
+    assert.equal(pending.body.data.startsAt, slot.startsAt);
+    assert.equal(pending.body.data.serviceName, service.name);
+
+    const list = await request('/professional/bookings?status=pending');
+    for (const booking of list.body.data) assertFields(booking, 'ProfessionalBooking');
+    const confirmed = await request(`/professional/bookings/${id}/status`, { method: 'PATCH', body: { status: 'confirmed' } });
     assert.equal(confirmed.status, 200); assertFields(confirmed.body.data, 'Booking');
+    assert.equal((await track(id, token)).body.data.status, 'confirmed');
+    assert.equal((await track(otherId, otherToken)).body.data.status, 'pending');
+    assert.equal((await request(`/professional/bookings/${otherId}/status`, { method: 'PATCH', body: { status: 'rejected' } })).status, 200);
+    assert.equal((await track(otherId, otherToken)).body.data.status, 'rejected');
+    await db.query("UPDATE bookings SET status='cancelled' WHERE id=$1", [otherId]);
+    assert.equal((await track(otherId, otherToken)).body.data.status, 'cancelled');
+    await db.query("UPDATE bookings SET status='completed' WHERE id=$1", [otherId]);
+    assert.equal((await track(otherId, otherToken)).body.data.status, 'completed');
+    await initializeDatabase(db);
+    assert.deepEqual((await track(legacy.id, token)).body, denied.body);
+    assert.equal((await track(id, token)).body.data.status, 'confirmed');
+    const credential = (await db.query('SELECT token_hash FROM booking_tracking_credentials WHERE booking_id=$1', [id])).rows[0];
+    assert.ok(credential && credential.token_hash !== token && credential.token_hash === createHash('sha256').update(token).digest('hex'));
     assert.equal((await request('/auth/logout', { method: 'POST' })).status, 200);
     assert.equal((await request('/auth/session')).status, 401);
   });

@@ -33,11 +33,22 @@ export const publicPaths = {
       { name: 'days', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 30, default: 14 } },
       { name: 'startDate', in: 'query', description: 'Fecha civil válida. Omitir para partir de hoy en Chile; fechas pasadas muestran horas no reservables.', schema: { type: 'string', format: 'date' } }],
   }) },
-  '/bookings': { post: operation('createBooking', 'Reservas', 'Crear una solicitud de reserva', 'Esta operación escribe datos reales. No ejecutar ejemplos sobre la base de demostración conservada. Usar un startsAt ofrecido por /availability. En modo manual queda pending; en automático puede quedar confirmed si está disponible y no adelanta una pendiente elegible. Nombre, precio y duración quedan conservados históricamente.', ref('Booking'), { status: 201, body: 'BookingCreate', errors: [400, 404, 409, 422] }) },
+  '/bookings': { post: operation('createBooking', 'Reservas', 'Crear una solicitud de reserva', 'Esta operación escribe datos reales. No ejecutar ejemplos sobre la base de demostración conservada. Usar un startsAt ofrecido por /availability. En modo manual queda pending; en automático puede quedar confirmed si está disponible y no adelanta una pendiente elegible. Nombre, precio y duración quedan conservados históricamente. La respuesta emite una única vez la credencial privada trackingToken.', ref('BookingCreated'), { status: 201, body: 'BookingCreate', errors: [400, 404, 409, 422] }) },
   '/auth/login': { post: operation('loginProfessional', 'Autenticación', 'Iniciar sesión profesional', 'Para no mostrar la contraseña en JSON/cURL, usar el formulario protegido superior. Este endpoint establece la cookie HttpOnly y devuelve identidad y csrfToken. La cookie no está en el JSON. Scrypt, sesión SQL de ocho horas y limitación de intentos; valida Origin si se envía.', ref('Session'), { body: 'Login', errors: [400, 401, 403, 429] }) },
   '/auth/session': { get: operation('getProfessionalSession', 'Autenticación', 'Consultar sesión actual', 'Requiere la cookie del mismo host. Devuelve modalidad actual y CSRF, no el token de sesión HttpOnly. No compartir ni capturar su respuesta con datos privados.', ref('Session'), { privateRead: true }) },
   '/auth/logout': { post: operation('logoutProfessional', 'Autenticación', 'Cerrar sesión', 'Sin cuerpo obligatorio. Cookie y X-CSRF-Token; revoca la sesión SQL y borra la cookie.', ref('Logout'), { write: true }) },
 };
+
+const tracking = operation(
+  'trackBooking', 'Reservas', 'Consultar el estado de una reserva propia',
+  'Usar Authorization: Bearer con la credencial entregada al crear esa reserva. No devuelve datos de contacto ni la credencial. Las reservas anteriores a la migración no tienen acceso de seguimiento.',
+  ref('TrackedBooking'),
+  { parameters: [{ ...resourceId, description: 'Identificador numérico de la reserva. Enviar la credencial solo en Authorization.', schema: { type: 'integer', minimum: 1, maximum: 2147483647 } }], errors: [400, 401, 404] },
+);
+tracking.security = [{ bookingTracking: [] }];
+tracking.responses[401].description = 'Credencial de seguimiento ausente o mal formada.';
+tracking.responses[404].description = 'No existe una reserva asociada a la combinación del identificador y la credencial.';
+publicPaths['/bookings/{id}/tracking'] = { get: tracking };
 
 export const professionalPaths = {
   '/professional/bookings': { get: operation('listProfessionalBookings', 'Solicitudes profesionales', 'Consultar reservas propias', 'Orden por created_at e id ascendente (orden FIFO de recepción SQL). Solo admite el filtro status; no acepta professionalId ni otros parámetros. La identidad proviene de la sesión.', array(ref('ProfessionalBooking')), {

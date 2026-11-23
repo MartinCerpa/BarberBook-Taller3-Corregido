@@ -1,8 +1,8 @@
-const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
+export const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '');
 
 const estadoDesconocido = 'No pudimos comprobar si la reserva se registró. Consulta al profesional antes de volver a solicitarla.';
 
-async function consultarApi(ruta, body) {
+async function consultarApi(ruta, { body, token } = {}) {
   if (!apiUrl || !/^https?:\/\/[^/]+\/api$/i.test(apiUrl)) {
     throw new Error('Configura EXPO_PUBLIC_API_URL con la dirección del backend terminada en /api.');
   }
@@ -14,11 +14,14 @@ async function consultarApi(ruta, body) {
     let respuesta;
     try {
       respuesta = await fetch(`${apiUrl}${ruta}`, {
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...(body && { 'Content-Type': 'application/json' }),
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
         signal: controller.signal,
         ...(body && {
           method: 'POST',
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         }),
       });
@@ -49,6 +52,7 @@ async function consultarApi(ruta, body) {
 const esId = (valor) => Number.isInteger(valor) && valor > 0;
 const esNombre = (valor) => typeof valor === 'string' && valor.trim().length > 0;
 const esTextoOpcional = (valor) => valor == null || typeof valor === 'string';
+export const esCredencialSeguimiento = (valor) => typeof valor === 'string' && /^[0-9a-f]{64}$/.test(valor);
 
 export async function obtenerProfesionales() {
   const datos = await consultarApi('/professionals');
@@ -90,9 +94,24 @@ export async function obtenerDisponibilidad(professionalId, serviceId) {
 }
 
 export async function crearReserva({ serviceId, customerName, customerPhone, startsAt }) {
-  const reserva = await consultarApi('/bookings', { serviceId, customerName, customerPhone, startsAt });
+  const reserva = await consultarApi('/bookings', { body: { serviceId, customerName, customerPhone, startsAt } });
   if (!esId(reserva?.id) || !['pending', 'confirmed'].includes(reserva.status)) {
     throw Object.assign(new Error(estadoDesconocido), { uncertain: true });
   }
   return reserva;
+}
+
+export async function consultarSeguimiento(id, token) {
+  if (!esId(id) || id > 2147483647 || !esCredencialSeguimiento(token)) {
+    throw new Error('La credencial de seguimiento guardada no es válida.');
+  }
+  const reserva = await consultarApi(`/bookings/${id}/tracking`, { token });
+  if (reserva?.id !== id || !['pending', 'confirmed', 'rejected', 'cancelled', 'completed'].includes(reserva.status)
+    || !esNombre(reserva.professionalName) || !esNombre(reserva.serviceName)
+    || typeof reserva.startsAt !== 'string' || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(reserva.startsAt)
+    || !Number.isFinite(Date.parse(reserva.startsAt))) {
+    throw new Error('No pudimos leer el estado de la reserva. Vuelve a consultar.');
+  }
+  const { status, professionalName, serviceName, startsAt } = reserva;
+  return { id, status, professionalName, serviceName, startsAt };
 }
