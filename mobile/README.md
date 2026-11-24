@@ -1,75 +1,435 @@
-# BarberBook móvil · Hito 4
+# BarberBook Mobile | Hito 4
 
-La pantalla pública muestra el perfil del profesional y sus servicios activos. Desde el catálogo se puede seleccionar un servicio, consultar horarios y enviar una solicitud de reserva. El acceso profesional sigue pendiente.
+Aplicación móvil de BarberBook desarrollada con React Native y Expo para la asignatura Desarrollo Web y Móvil.
 
-## Probar en Expo Go
+**Estudiante:** Martín Cerpa
 
-1. Inicia el backend académico del Taller 3 con su base de datos habitual, siguiendo el README de `backend/`. Express sirve la API en el puerto `3003`.
-2. En Windows, ejecuta `ipconfig` y busca la dirección IPv4 del adaptador Wi-Fi o Ethernet conectado a la misma red que el celular. Crea `mobile/.env.local` y reemplaza `IP_DEL_PC` por esa dirección.
+## Descripción
 
-   ```dotenv
-   EXPO_PUBLIC_API_URL=http://IP_DEL_PC:3003/api
-   ```
+BarberBook Mobile permite a los clientes consultar servicios de barbería, solicitar horas de atención, revisar el estado de sus reservas y cancelarlas cuando corresponda.
 
-   Para una API disponible por HTTPS, usa su URL terminada en `/api`. Expo incluye las variables `EXPO_PUBLIC_` en el bundle, así que esta variable debe contener únicamente la URL.
+También incorpora un panel profesional para gestionar solicitudes, consultar la agenda y modificar la configuración del negocio.
 
-3. Desde `mobile/`, ejecuta `npm ci` si partes de un clon limpio. Si Metro estaba abierto desde la Etapa 1, detén ese proceso con Ctrl+C. Ejecuta `npm start -- --clear` y abre el QR con Expo Go.
-4. Si falla la conexión, abre `http://IP_DEL_PC:3003/api/health` en el navegador del celular. Debe mostrar `status: ok` y `database: connected`. Revisa la red local y el acceso al puerto 3003 en el firewall si el navegador tampoco llega a la API. Si el navegador llega pero Expo Go bloquea HTTP, prueba una URL HTTPS de la misma API.
+La aplicación utiliza la misma API REST y base de datos PostgreSQL de BarberBook Web, desarrolladas durante el Hito 3.
 
-## Verificar los datos
+## Tecnologías
 
-Abre `/api/professionals` y `/api/services` en el mismo host y puerto. En PowerShell, también puedes consultar y filtrar ambos catálogos.
+- React Native 0.88.1.
+- React 19.3.0.
+- Expo SDK 58.
+- Expo Router.
+- Expo SecureStore.
+- JavaScript y TypeScript.
+- ESLint.
 
-```powershell
-$barberBookApi = 'http://IP_DEL_PC:3003/api'
-$profesionales = (Invoke-RestMethod "$barberBookApi/professionals").data
-$servicios = (Invoke-RestMethod "$barberBookApi/services").data
-$profesionales | Select-Object id, name
-$servicios | Where-Object { $_.professional_id -eq $profesionales[0].id } |
-  Select-Object name, price, duration_minutes
+## Funcionalidades
+
+### Cliente
+
+- Consulta del perfil público del profesional.
+- Catálogo de servicios, precios y duración.
+- Consulta de disponibilidad de horarios.
+- Solicitud de reservas.
+- Validación de datos de contacto.
+- Comprobante de reserva.
+- Seguimiento de múltiples reservas.
+- Actualización individual y general de estados.
+- Cancelación de reservas pendientes o confirmadas.
+- Tema claro y oscuro.
+
+### Profesional
+
+- Inicio y cierre de sesión.
+- Resumen de la jornada.
+- Solicitudes pendientes.
+- Confirmación y rechazo de reservas.
+- Historial desplegable.
+- Agenda de 14 días.
+- Edición del perfil público.
+- Edición de servicios existentes.
+- Configuración de horarios y pausas.
+- Aprobación manual o automática.
+
+## Estructura del proyecto
+
+```text
+mobile/
+├── assets/
+├── src/
+│   ├── app/
+│   │   ├── _layout.tsx
+│   │   ├── index.jsx
+│   │   ├── mi-reserva.jsx
+│   │   ├── reserva/
+│   │   │   └── [professionalId].jsx
+│   │   └── profesional/
+│   │       ├── _layout.jsx
+│   │       ├── solicitudes.jsx
+│   │       ├── agenda.jsx
+│   │       └── (inicio)/
+│   │           ├── _layout.jsx
+│   │           ├── index.jsx
+│   │           └── ajustes.jsx
+│   ├── components/
+│   ├── hooks/
+│   ├── services/
+│   ├── theme/
+│   └── utils/
+├── test/
+├── package.json
+└── README.md
 ```
 
-Compara los resultados con el primer perfil que aparece en la app. Si hay varios profesionales, selecciona otro y compara usando su ID. El servicio de catálogo de Express consulta PostgreSQL y devuelve los servicios activos. Esta comprobación solo usa solicitudes GET.
+Las pantallas se organizan mediante Expo Router. Los componentes reutilizables se encuentran separados de los servicios HTTP, las funciones auxiliares y la gestión de estados.
 
-## Probar una reserva en Expo Go
+## Instalación y ejecución
 
-1. Toca **Reservar una hora** en el catálogo. Elige un servicio y comprueba su precio y duración.
-2. Elige una fecha y una hora. La app muestra las horas habilitadas por `GET /api/availability` en horario de Chile.
-3. Completa el nombre y el celular chileno con datos ficticios. Puedes probar primero un campo vacío y comprobar el mensaje de validación.
-4. Revisa el resumen y toca **Enviar solicitud** una sola vez. Esta acción escribe en PostgreSQL mediante `POST /api/bookings`.
-5. Comprueba el número y el estado que muestra la app. Busca la misma reserva en la sección correspondiente del panel web con una sesión profesional. Para volver a empezar, toca **Volver al catálogo**.
+### 1. Iniciar el backend
 
-Si la API indica que la hora ya no está disponible, el flujo conserva los datos de contacto y recarga las horas. Si se pierde la respuesta del envío, verifica con el profesional si la reserva quedó registrada antes de intentarlo de nuevo.
+Desde la raíz del repositorio, iniciar Docker Desktop y ejecutar:
 
-## Consultar Mis reservas
+```bash
+docker compose up --build -d
+```
 
-1. Usa un backend con la API de seguimiento habilitada. Inicia el proyecto móvil con `npm start` desde `mobile/`, abre Expo Go y comprueba que `EXPO_PUBLIC_API_URL` apunta al entorno de pruebas.
-2. En ese entorno, registra varias solicitudes con datos ficticios y horas distintas. Pulsa **Ver mis reservas** al finalizar o entra en **Mis reservas** desde el catálogo.
-3. Desliza las tarjetas o usa las flechas. Comprueba los números, el contador, el orden de las próximas atenciones y las fechas y horas de Chile.
-4. Tras resolver una solicitud de prueba en el panel profesional, toca **Actualizar reserva** en su tarjeta. Luego comprueba **Actualizar todas**. Al cortar y recuperar la conexión, verifica que las tarjetas se conservan y que **Reintentar** recupera su estado.
-5. Cierra y vuelve a abrir Expo Go. Comprueba que reaparecen todas las tarjetas. Si ya tenías una credencial en la versión anterior, usa la misma instalación y URL para verificar que también aparece.
+Si se trata de una instalación nueva, seguir primero las instrucciones de configuración e inicialización del [README principal](../README.md).
 
-Cada reserva conserva su propia credencial en SecureStore. El historial se separa por URL de API y la credencial anterior se migra automáticamente en su entorno original. Si falla el guardado, la app mantiene los accesos nuevos durante la sesión y vuelve a intentar guardarlos al actualizar todas las reservas. Las reservas sin una credencial conservada, incluidas las antiguas o las de otro dispositivo, se consultan con el profesional.
+Comprobar el funcionamiento del backend:
 
-### Cancelar una reserva en Expo Go
+```bash
+curl http://localhost:3003/api/health
+```
 
-1. Conecta Expo Go a un backend actualizado en un entorno de pruebas. Usa únicamente reservas ficticias.
-2. En **Mis reservas**, abre una reserva pendiente o confirmada y pulsa **Cancelar reserva**. Prueba **Volver** y verifica que su estado sigue igual. Abre otra vez el diálogo y confirma con **Sí, cancelar reserva**.
-3. Comprueba que la tarjeta desaparece al confirmarse la cancelación, el contador se actualiza y las demás tarjetas siguen visibles. Cierra y vuelve a abrir Expo Go para comprobar que la reserva cancelada no reaparece. Si era la última, debe verse **Todavía no tienes reservas**.
-4. En el panel profesional, actualiza las solicitudes y la agenda. Comprueba que la cancelada aparece entre las resueltas del panel móvil y que las competidoras siguen pendientes. Si la cancelada estaba confirmada, verifica que la hora vuelva a estar disponible cuando no exista otra ocupación.
-5. Para probar una pérdida de conexión, desconecta el teléfono antes de confirmar. Después de restablecer la conexión, usa **Comprobar estado**. La app retira la tarjeta y su credencial solo cuando la API devuelve `cancelled`.
+Respuesta esperada:
 
-HTTP en la red local sirve para la demostración con datos ficticios. Usa HTTPS si trabajas con datos reales, ya que la credencial viaja en la cabecera de cada consulta.
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
 
-Ejecuta `npm run test:booking-tracking` desde `mobile/` para probar el almacenamiento, la migración, la consulta y la cancelación con mocks. Estas pruebas no contactan el backend ni escriben reservas.
+### 2. Configurar la conexión desde el teléfono
 
-## Probar el panel profesional en Expo Go
+El computador y el teléfono deben estar conectados a la misma red local.
 
-1. Abre **Panel profesional** desde el catálogo. Usa una cuenta de prueba en un entorno controlado. Para una cuenta real, configura una URL base HTTPS.
-2. Inicia sesión. La app pide `GET /api/auth/session` después del login y abre el panel solo si el servidor reconoce la cookie HttpOnly reenviada por el cliente.
-3. En **Inicio**, comprueba las tres tarjetas y sus accesos. En **Solicitudes**, verifica que las pendientes aparecen por hora de atención. Abre **Historial de solicitudes** y comprueba el contador, el orden y los estados. Resuelve solicitudes ficticias solo en el entorno de pruebas. Si se solapan, el servidor aplica FIFO.
-4. En **Agenda**, prueba días con cero, una y varias reservas. Comprueba las 14 fechas, el resumen, el destaque de la próxima atención y **Actualizar agenda**.
-5. En **Inicio**, abre la tarjeta **Ajustes**. Comprueba la edición del perfil, de un servicio existente, de la semana con pausas y de la aprobación. Guarda y vuelve a abrir cada sección para comprobar la lectura posterior. Para aprobación, prueba **Volver** en el diálogo antes de confirmar. Comprueba también que Atrás desde Ajustes vuelve a Inicio y que la barra conserva las tres pestañas.
-6. Toca **Cerrar sesión** y vuelve a entrar desde el catálogo. Las escrituras requieren cookie y `X-CSRF-Token`. Las pruebas con mocks del panel se ejecutan con `npm run test:professional-panel` desde `mobile/`.
+En Windows, ejecutar:
 
-Si el login responde correctamente pero la app informa que el dispositivo no reenvía la cookie, comprueba que toda la prueba use un solo host y una URL HTTPS directa, sin redirecciones. Si Expo Go sigue sin devolver la cookie, una alternativa sería validar un development build con manejo nativo de cookies que mantenga HttpOnly. Si se requiere otro medio de autenticación móvil, necesita un diseño de servidor revocable sobre HTTPS que conserve los controles de propiedad de las reservas. La app no copia cookies a JavaScript ni guarda las contraseñas o el CSRF en disco.
+```bash
+ipconfig
+```
+
+Identificar la dirección IPv4 del adaptador de red utilizado.
+
+El archivo `compose.yaml` publicado restringe inicialmente el acceso al backend a:
+
+```yaml
+ports:
+  - "127.0.0.1:3003:3003"
+```
+
+Para realizar una demostración desde un dispositivo físico, modificar localmente esta configuración:
+
+```yaml
+ports:
+  - "0.0.0.0:3003:3003"
+```
+
+También se puede utilizar específicamente la dirección IPv4 del adaptador del computador.
+
+Mantener PostgreSQL restringido a loopback y limitar el acceso al puerto 3003 mediante el firewall a la red privada de pruebas.
+
+Aplicar el cambio:
+
+```bash
+docker compose up -d --build backend
+```
+
+### 3. Configurar la API
+
+Crear un archivo `.env.local` dentro de `mobile/`:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://IP_DEL_PC:3003/api
+```
+
+Reemplazar `IP_DEL_PC` por la dirección IPv4 del computador.
+
+Esta variable debe contener solamente la dirección de la API, sin contraseñas ni credenciales.
+
+Desde el navegador del teléfono, comprobar:
+
+```text
+http://IP_DEL_PC:3003/api/health
+```
+
+Si no responde, revisar la conexión de red, el firewall y el estado del backend.
+
+### 4. Instalar dependencias
+
+Desde la raíz del repositorio:
+
+```bash
+cd mobile
+npm ci
+```
+
+### 5. Iniciar Expo
+
+```bash
+npm start -- --clear
+```
+
+Abrir Expo Go en un dispositivo Android compatible y escanear el código QR generado.
+
+La aplicación utiliza el backend definido en `EXPO_PUBLIC_API_URL`.
+
+No es necesario publicar la aplicación en una tienda para realizar la demostración académica.
+
+## Navegación
+
+La aplicación utiliza Expo Router para gestionar la navegación basada en archivos.
+
+| Ruta | Funcionalidad |
+|---|---|
+| `/` | Perfil público y catálogo. |
+| `/reserva/[professionalId]` | Flujo de solicitud de reservas. |
+| `/mi-reserva` | Seguimiento y cancelación de reservas. |
+| `/profesional` | Acceso y resumen profesional. |
+| `/profesional/solicitudes` | Gestión de solicitudes. |
+| `/profesional/agenda` | Agenda profesional. |
+| `/profesional/ajustes` | Configuración profesional. |
+
+El panel profesional utiliza una barra inferior con tres pestañas: Inicio, Solicitudes y Agenda.
+
+Ajustes se encuentra dentro de la sección Inicio.
+
+## Flujo de reserva
+
+El proceso de reserva se divide en cuatro etapas:
+
+1. Selección del servicio.
+2. Selección de fecha y hora.
+3. Ingreso de datos de contacto.
+4. Revisión y envío de la solicitud.
+
+La disponibilidad se obtiene directamente desde el backend, considerando los horarios de atención, la duración del servicio y las reservas existentes.
+
+Antes de registrar una reserva, el backend vuelve a comprobar la disponibilidad.
+
+En caso de éxito, la aplicación muestra un comprobante con el número y estado de la reserva.
+
+## Reservas competitivas
+
+Varios clientes pueden solicitar un mismo horario mientras sus reservas se encuentren pendientes.
+
+El backend aplica una política FIFO entre solicitudes elegibles que se solapan.
+
+Las reservas confirmadas impiden confirmar otras atenciones que ocupen intervalos incompatibles.
+
+Las reglas de disponibilidad y confirmación se mantienen en Express y PostgreSQL.
+
+## Mis reservas
+
+La aplicación permite conservar y consultar varias reservas desde una misma instalación.
+
+Cada reserva utiliza una credencial individual de seguimiento, generada por el backend y almacenada mediante Expo SecureStore.
+
+Las credenciales se organizan por dirección de API y se conservan entre sesiones de la aplicación.
+
+Las próximas reservas se muestran cronológicamente y pueden consultarse mediante un carrusel horizontal.
+
+El usuario puede actualizar una reserva individualmente o consultar nuevamente todas las reservas.
+
+Ante errores de comunicación, se conservan las credenciales existentes y se permite reintentar la consulta.
+
+## Cancelación de reservas
+
+El cliente puede cancelar reservas pendientes o confirmadas utilizando su credencial de seguimiento.
+
+La aplicación solicita una confirmación antes de ejecutar la operación.
+
+Cuando el backend confirma la cancelación:
+
+- La reserva cambia al estado `cancelled`.
+- La tarjeta desaparece de Mis reservas.
+- Se elimina su credencial local.
+- Las demás reservas permanecen disponibles.
+- El registro se conserva en PostgreSQL.
+- El profesional puede consultar la cancelación en su historial.
+
+Si se pierde la conexión durante la operación, la aplicación consulta nuevamente el estado antes de considerar que la cancelación fue exitosa.
+
+## Panel profesional
+
+### Inicio
+
+Muestra un resumen de la jornada mediante tarjetas con:
+
+- Solicitudes pendientes.
+- Reservas confirmadas del día.
+- Próxima atención.
+
+También permite acceder a Solicitudes, Agenda y Ajustes.
+
+### Solicitudes
+
+Las solicitudes pendientes se muestran primero, ordenadas por fecha y hora de atención.
+
+El profesional puede confirmar o rechazar solicitudes.
+
+El historial de solicitudes resueltas permanece contraído inicialmente y puede desplegarse cuando sea necesario.
+
+Las decisiones sobre disponibilidad y prioridad FIFO corresponden al backend.
+
+### Agenda
+
+Permite consultar las atenciones confirmadas durante los próximos 14 días.
+
+Incluye un selector de fechas, el resumen de la jornada, la próxima atención y estados vacíos cuando no existen reservas.
+
+### Ajustes
+
+Permite modificar:
+
+- Perfil público.
+- Nombre, precio, duración y visibilidad de servicios existentes.
+- Jornada semanal y pausas.
+- Modalidad de aprobación manual o automática.
+
+Después de guardar una configuración, la aplicación vuelve a consultar la API para obtener los datos actualizados.
+
+## Endpoints utilizados
+
+La aplicación utiliza 19 combinaciones de método y ruta de la API REST compartida.
+
+| Método | Endpoint | Funcionalidad | Autorización |
+|---|---|---|---|
+| GET | `/api/professionals` | Perfil público | Pública |
+| GET | `/api/services` | Catálogo de servicios | Pública |
+| GET | `/api/availability` | Disponibilidad | Pública |
+| POST | `/api/bookings` | Crear reserva | Pública |
+| GET | `/api/bookings/:id/tracking` | Seguimiento | Bearer |
+| POST | `/api/bookings/:id/cancel` | Cancelación | Bearer |
+| POST | `/api/auth/login` | Inicio de sesión | Credenciales |
+| GET | `/api/auth/session` | Consultar sesión | Cookie |
+| POST | `/api/auth/logout` | Cerrar sesión | Cookie + CSRF |
+| GET | `/api/professional/bookings` | Consultar solicitudes | Cookie |
+| PATCH | `/api/professional/bookings/:id/status` | Confirmar o rechazar | Cookie + CSRF |
+| GET | `/api/professional/agenda` | Consultar agenda | Cookie |
+| GET | `/api/professional/profile` | Consultar perfil | Cookie |
+| PATCH | `/api/professional/profile` | Actualizar perfil | Cookie + CSRF |
+| GET | `/api/professional/services` | Consultar servicios | Cookie |
+| PATCH | `/api/professional/services/:id` | Editar servicio | Cookie + CSRF |
+| GET | `/api/professional/working-hours` | Consultar jornada | Cookie |
+| PUT | `/api/professional/working-hours` | Actualizar jornada | Cookie + CSRF |
+| PATCH | `/api/professional/settings` | Configurar aprobación | Cookie + CSRF |
+
+La documentación completa de la API está disponible mediante Swagger:
+
+http://localhost:5173/api/docs
+
+## Seguridad
+
+El seguimiento de reservas requiere una credencial individual enviada mediante la cabecera:
+
+```http
+Authorization: Bearer <trackingToken>
+```
+
+El número de reserva por sí solo no permite acceder a su información.
+
+La autenticación profesional utiliza cookies HttpOnly y protección CSRF para operaciones que modifican información.
+
+La aplicación no almacena contraseñas profesionales ni tokens CSRF de forma persistente.
+
+El entorno HTTP local debe utilizarse exclusivamente con datos ficticios y en una red controlada. Para utilizar datos reales se requiere una configuración HTTPS apropiada.
+
+## Validaciones y estados de interfaz
+
+La aplicación contempla:
+
+- Validación de campos obligatorios.
+- Validación del nombre y teléfono del cliente.
+- Validación de horarios disponibles.
+- Mensajes de error de la API.
+- Manejo de conflictos de reservas.
+- Estados de carga.
+- Estados sin resultados.
+- Confirmación de operaciones.
+- Reintentos ante errores de conexión.
+- Manejo de sesiones vencidas.
+
+## Pruebas automatizadas
+
+Desde `mobile/`, ejecutar:
+
+```bash
+npm run test:booking-tracking
+npm run test:professional-panel
+npm run lint
+npm run typecheck
+npx expo install --check
+```
+
+Resultados de la auditoría final:
+
+| Prueba | Resultado |
+|---|---|
+| Seguimiento y cancelación | 23 pruebas aprobadas |
+| Panel profesional | 7 pruebas aprobadas |
+| ESLint | Aprobado |
+| TypeScript | Aprobado |
+
+Durante el sprint anterior también se verificó la compatibilidad de las dependencias de Expo y la generación de bundles para Android e iOS.
+
+Las pruebas móviles utilizan mocks y no modifican las reservas almacenadas en PostgreSQL.
+
+Las comprobaciones físicas en Android complementan las pruebas automatizadas.
+
+## Demostración de integración
+
+Para verificar que la aplicación móvil comparte los datos con BarberBook Web:
+
+1. Crear una reserva ficticia desde Android.
+2. Registrar el número de reserva.
+3. Buscar la misma reserva en el panel web.
+4. Confirmar la solicitud desde la web.
+5. Actualizar Mis reservas desde Android.
+6. Comprobar el nuevo estado.
+7. Cancelar la reserva desde el móvil.
+8. Verificar la cancelación en el panel profesional.
+
+También se recomienda probar una validación de formulario, los estados sin resultados, la navegación y la actualización de configuraciones profesionales.
+
+## Limitaciones
+
+- El historial de reservas depende de las credenciales conservadas en el dispositivo.
+- No existe sincronización del historial entre diferentes teléfonos.
+- No se pueden recuperar automáticamente reservas antiguas sin una credencial disponible.
+- No se calcula una posición explícita dentro de una fila de turnos.
+- La aplicación requiere conexión con el backend.
+- No se incluyen todas las operaciones administrativas de la versión web.
+- La ejecución en HTTP local está destinada a pruebas académicas.
+
+## Uso de inteligencia artificial
+
+Durante el desarrollo se utilizó ChatGPT como apoyo para analizar requisitos, organizar el trabajo y discutir soluciones.
+
+Codex se utilizó para implementar y revisar funcionalidades, corregir errores, preparar pruebas y auditar el código.
+
+Modern Web Guidance se utilizó como referencia para formularios, accesibilidad y organización de la interfaz, adaptando sus recomendaciones a React Native.
+
+Los resultados se revisaron mediante comprobaciones automatizadas y pruebas de desarrollo en Android.
+
+## Documentación complementaria
+
+- [README principal](../README.md)
+- [Documentación del backend](../backend/README.md)
+- [Documentación del cliente web](../frontend/README.md)
+
+## Autor
+
+Martín Cerpa.
+
+Desarrollo Web y Móvil, segundo semestre de 2026.
